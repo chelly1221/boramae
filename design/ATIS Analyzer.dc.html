@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Pretendard", sans-serif; background: linear-gradient(165deg, #f4f4f6 0%, #e9e9ee 100%); -webkit-font-smoothing: antialiased; }
+  a { color: #7f0d00; text-decoration: none; }
+  a:hover { color: #5c0900; }
+  input[type="range"] { accent-color: #7f0d00; }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 36px; box-sizing: border-box;">
+  <div style="position: relative; width: 1280px; height: 800px; border-radius: 12px; overflow: hidden; display: flex; background: #ffffff; box-shadow: 0 0 0 1px rgba(40,20,15,0.16), 0 24px 60px rgba(50,30,25,0.32), 0 4px 14px rgba(50,30,25,0.16);">
+
+    <!-- Sidebar -->
+    <div style="width: 208px; flex-shrink: 0; display: flex; flex-direction: column; background: #f7f7f9; border-right: 1px solid rgba(50,30,20,0.09); padding: 14px 10px 12px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 0 4px 4px;">
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; border: 0.5px solid rgba(0,0,0,0.12);"></div>
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e; border: 0.5px solid rgba(0,0,0,0.12);"></div>
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: #28c840; border: 0.5px solid rgba(0,0,0,0.12);"></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 14px 6px 6px;">
+        <img src="./uploads/boramae-e3905caf.png" alt="KAC 보라매" style="width: 44px; height: 44px; object-fit: contain;"></img>
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-size: 13px; font-weight: 800; color: rgba(40,20,15,0.9); letter-spacing: -0.01em;">KAC 보라매</span>
+          <span style="font-size: 10px; color: rgba(60,40,30,0.5);">ATIS 통계·분석</span>
+        </div>
+      </div>
+      <div style="padding: 14px 8px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: rgba(60,40,30,0.45);">공항</div>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; background: rgba(127,13,0,0.1); font-size: 13px; font-weight: 600; color: rgba(40,20,15,0.9);">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: #7f0d00; flex-shrink: 0;"></div>
+        <span style="flex: 1;">RKSS 김포</span>
+        <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.06em; color: #7f0d00;">감시 중</span>
+      </div>
+      <div style="padding: 18px 8px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: rgba(60,40,30,0.45);">보기</div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div onClick="{{ goStats }}" style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 13px; font-weight: 500; color: {{ navStatsFg }}; cursor: default; background: {{ navStats }};" style-hover="background: {{ navStatsHov }}">
+          <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="8" width="3" height="5" rx="1" fill="{{ navStatsIc }}"></rect><rect x="5.5" y="4" width="3" height="9" rx="1" fill="{{ navStatsIc }}"></rect><rect x="10" y="1" width="3" height="12" rx="1" fill="{{ navStatsIc }}"></rect></svg>
+          <span>통계 분석</span>
+        </div>
+        <div onClick="{{ goMap }}" style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 13px; font-weight: 500; color: {{ navMapFg }}; cursor: default; background: {{ navMap }};" style-hover="background: {{ navMapHov }}">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 12.6C7 12.6 3.2 8.6 3.2 5.8a3.8 3.8 0 1 1 7.6 0C10.8 8.6 7 12.6 7 12.6Z" fill="none" stroke="{{ navMapIc }}" stroke-width="1.4" stroke-linejoin="round"></path><circle cx="7" cy="5.8" r="1.4" fill="{{ navMapIc }}"></circle></svg>
+          <span>지도</span>
+        </div>
+        <div onClick="{{ goImport }}" style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 13px; font-weight: 500; color: {{ navImportFg }}; cursor: default; background: {{ navImport }};" style-hover="background: {{ navImportHov }}">
+          <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.1" fill="none" stroke="{{ navImportIc }}" stroke-width="1.4"></circle><path d="M7 1.4v2M7 10.6v2M1.4 7h2M10.6 7h2M3 3l1.5 1.5M9.5 9.5L11 11M11 3L9.5 4.5M4.5 9.5L3 11" stroke="{{ navImportIc }}" stroke-width="1.4" stroke-linecap="round"></path></svg>
+          <span>설정</span>
+        </div>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="padding: 8px; border-top: 1px solid rgba(50,30,20,0.08); font-size: 11px; color: rgba(60,40,30,0.5); display: flex; flex-direction: column; gap: 3px;">
+        <span>폴더 감시 · 정상</span>
+        <span>최종 수신 {{ lastTime }} · {{ total }}건</span>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+      <div style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 18px; border-bottom: 1px solid rgba(50,30,20,0.08); background: #ffffff;">
+        <div style="font-size: 15px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ viewTitle }}</div>
+        <div style="font-size: 13px; color: rgba(60,40,30,0.5);">김포국제공항 · RKSS</div>
+        <div style="flex: 1;"></div>
+        <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ toggleWindViz }}" style="display: flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 7px; border: 1px solid {{ windVizBorder }}; background: {{ windVizBg }}; font-size: 12px; font-weight: 600; color: {{ windVizFg }};" style-hover="filter: brightness(0.97)">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M1.5 4.5h6.8a1.9 1.9 0 1 0-1.8-2.5M1.5 7.5h9.6a2 2 0 1 1-1.9 2.6M1.5 10.5h4.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>
+            <span>바람 시각화</span>
+            <span style="width: 24px; height: 14px; border-radius: 999px; background: {{ windVizTrack }}; position: relative; transition: background 0.15s;"><span style="position: absolute; top: 2px; left: {{ windVizKnob }}; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: left 0.15s;"></span></span>
+          </div>
+        </sc-if>
+        <div style="display: flex; align-items: center; border: 1px solid rgba(50,30,20,0.12); border-radius: 7px; overflow: hidden; font-size: 12px; font-weight: 500;">
+          <div onClick="{{ setR24 }}" style="padding: 5px 12px; background: {{ r24Bg }}; color: {{ r24Fg }};" style-hover="background: rgba(127,13,0,0.08)">24시간</div>
+          <div onClick="{{ setR7 }}" style="padding: 5px 12px; background: {{ r7Bg }}; color: {{ r7Fg }}; border-left: 1px solid rgba(50,30,20,0.1);" style-hover="background: rgba(127,13,0,0.08)">7일</div>
+          <div onClick="{{ setR30 }}" style="padding: 5px 12px; background: {{ r30Bg }}; color: {{ r30Fg }}; border-left: 1px solid rgba(50,30,20,0.1);" style-hover="background: rgba(127,13,0,0.08)">30일</div>
+        </div>
+        <div onClick="{{ exportCsv }}" style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 7px; border: 1px solid rgba(50,30,20,0.12); background: #fff; font-size: 12px; font-weight: 600; color: rgba(40,20,15,0.75);" style-hover="background: rgba(0,0,0,0.04)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v6M3.5 5.2 6 7.7l2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M1.5 9.2v0.8A1.5 1.5 0 0 0 3 11.5h6a1.5 1.5 0 0 0 1.5-1.5v-0.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+          <span>CSV</span>
+        </div>
+        <div style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid rgba(50,30,20,0.12); display: flex; align-items: center; justify-content: center; background: #fff;" style-hover="background: rgba(0,0,0,0.04)">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 6.5a4.5 4.5 0 1 1-1.3-3.2" stroke="rgba(60,40,30,0.65)" stroke-width="1.5" stroke-linecap="round"></path><path d="M11 1v2.5H8.5" stroke="rgba(60,40,30,0.65)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow: auto; background: #fafafb; position: relative;">
+
+        <sc-if value="{{ isStats }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 18px 20px;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">총 수신 전문</span><span style="font-size: 24px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ total }}건</span></div>
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">평균 발행 간격</span><span style="font-size: 24px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ interval }}</span></div>
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">최다 사용 활주로</span><span style="font-size: 24px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ topRwy }}</span></div>
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">평균 QNH</span><span style="font-size: 24px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ avgQnh }} hPa</span></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px;">
+              <!-- 온도/노점 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); flex: 1;">온도 / 노점 추이 · 스프레드</span>
+                  <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 14px; height: 3px; border-radius: 2px; background: #b4451c;"></span>온도</span>
+                  <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 14px; height: 3px; border-radius: 2px; background: #8c7a6e;"></span>노점</span>
+                </div>
+                <svg viewBox="0 0 560 130" preserveAspectRatio="none" style="width: 100%; height: 110px;">
+                  <line x1="10" y1="120" x2="550" y2="120" stroke="rgba(50,30,20,0.1)"></line>
+                  <line x1="10" y1="65" x2="550" y2="65" stroke="rgba(50,30,20,0.06)"></line>
+                  <line x1="10" y1="10" x2="550" y2="10" stroke="rgba(50,30,20,0.06)"></line>
+                  <polyline points="{{ dpPts }}" fill="none" stroke="#8c7a6e" stroke-width="2"></polyline>
+                  <polyline points="{{ tempPts }}" fill="none" stroke="#b4451c" stroke-width="2"></polyline>
+                </svg>
+                <div style="display: flex; gap: 22px; align-items: center;">
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">현재 스프레드</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ spreadNow }}°C</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최소 스프레드</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ spreadMin }}°C</span></div>
+                  <sc-if value="{{ fogRisk }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: rgba(200,135,28,0.15); color: #9a6a12;">안개 위험 구간 감지</span>
+                  </sc-if>
+                </div>
+              </div>
+              <!-- 바람 장미 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 6px;">
+                <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">바람</span>
+                <div style="display: flex; align-items: center; gap: 14px;">
+                  <svg width="176" height="176" viewBox="0 0 200 200" style="flex-shrink: 0;">
+                    <circle cx="100" cy="100" r="26" fill="none" stroke="rgba(50,30,20,0.08)"></circle>
+                    <circle cx="100" cy="100" r="52" fill="none" stroke="rgba(50,30,20,0.08)"></circle>
+                    <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(50,30,20,0.08)"></circle>
+                    <path d="{{ roseD0 }}" fill="rgba(127,13,0,0.28)"></path>
+                    <path d="{{ roseD1 }}" fill="rgba(127,13,0,0.58)"></path>
+                    <path d="{{ roseD2 }}" fill="#7f0d00"></path>
+                    <text x="100" y="12" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(60,40,30,0.55)">N</text>
+                    <text x="192" y="104" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(60,40,30,0.55)">E</text>
+                    <text x="100" y="198" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(60,40,30,0.55)">S</text>
+                    <text x="8" y="104" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(60,40,30,0.55)">W</text>
+                  </svg>
+                  <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px; color: rgba(60,40,30,0.65);">
+                    <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 11px; height: 11px; border-radius: 3px; background: rgba(127,13,0,0.28);"></span>&lt; 8KT</span>
+                    <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 11px; height: 11px; border-radius: 3px; background: rgba(127,13,0,0.58);"></span>8–13KT</span>
+                    <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #7f0d00;"></span>≥ 14KT</span>
+                    <span style="padding-top: 4px; border-top: 1px solid rgba(50,30,20,0.07); color: rgba(60,40,30,0.5);">주풍 {{ domDir }} · {{ domPct }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px;">
+              <!-- 측풍/배풍 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); flex: 1;">측풍 / 배풍 성분 <span style="font-weight: 500; color: rgba(60,40,30,0.45);">· 사용 활주로 기준</span></span>
+                  <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 14px; height: 3px; border-radius: 2px; background: #7f0d00;"></span>측풍</span>
+                  <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 14px; height: 0; border-top: 2px dashed #b8770a;"></span>한계 {{ xwLimit }}KT</span>
+                </div>
+                <svg viewBox="0 0 560 130" preserveAspectRatio="none" style="width: 100%; height: 110px;">
+                  <line x1="10" y1="120" x2="550" y2="120" stroke="rgba(50,30,20,0.1)"></line>
+                  <polygon points="{{ xwArea }}" fill="rgba(127,13,0,0.07)"></polygon>
+                  <polyline points="{{ xwPts }}" fill="none" stroke="#7f0d00" stroke-width="2"></polyline>
+                  <line x1="10" y1="{{ thY }}" x2="550" y2="{{ thY }}" stroke="#b8770a" stroke-width="1.5" stroke-dasharray="5 4"></line>
+                </svg>
+                <div style="display: flex; gap: 22px;">
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최대 측풍</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ maxXw }}KT</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">한계 초과</span><span style="font-size: 18px; font-weight: 700; color: {{ xwExColor }};">{{ xwExceed }}건</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최대 배풍</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ maxTw }}KT</span></div>
+                </div>
+              </div>
+              <!-- 활주로: 비율 + 전환 타임라인 -->
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">활주로 사용 비율</span>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="width: 64px; font-size: 12px; font-weight: 600; color: rgba(60,40,30,0.6);">32L/32R</span>
+                      <div style="flex: 1; height: 12px; border-radius: 6px; background: rgba(50,30,20,0.06); overflow: hidden;"><div style="height: 100%; border-radius: 6px; background: #7f0d00; width: {{ rwy32w }};"></div></div>
+                      <span style="width: 36px; text-align: right; font-size: 12px; color: rgba(60,40,30,0.55);">{{ rwy32p }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="width: 64px; font-size: 12px; font-weight: 600; color: rgba(60,40,30,0.6);">14L/14R</span>
+                      <div style="flex: 1; height: 12px; border-radius: 6px; background: rgba(50,30,20,0.06); overflow: hidden;"><div style="height: 100%; border-radius: 6px; background: #8c7a6e; width: {{ rwy14w }};"></div></div>
+                      <span style="width: 36px; text-align: right; font-size: 12px; color: rgba(60,40,30,0.55);">{{ rwy14p }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">활주로 전환 이벤트</span>
+                  <div style="position: relative; height: 58px; margin: 0 6px;">
+                    <div style="position: absolute; left: 0; right: 0; top: 28px; height: 2px; border-radius: 1px; background: rgba(50,30,20,0.1);"></div>
+                    <sc-for list="{{ rwyEvents }}" as="e" hint-placeholder-count="2">
+                      <div onClick="{{ e.open }}" style="position: absolute; top: 0; bottom: 0; left: {{ e.left }}; width: 0; display: flex; flex-direction: column; align-items: center; cursor: default;">
+                        <span style="font-size: 10px; font-weight: 700; color: rgba(60,40,30,0.55); white-space: nowrap;">{{ e.time }}</span>
+                        <div style="width: 11px; height: 11px; border-radius: 50%; background: #7f0d00; border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(127,13,0,0.35); margin: 5px 0;"></div>
+                        <span style="font-size: 10px; font-weight: 700; color: #7f0d00; white-space: nowrap;">{{ e.label }}</span>
+                        <span style="font-size: 9px; color: rgba(60,40,30,0.5); white-space: nowrap;">{{ e.wind }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 10px; color: rgba(60,40,30,0.4);"><span>{{ firstTime }}</span><span>{{ lastTime }}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 히트맵 -->
+            <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); flex: 1;">시간대별 기상 히트맵 <span style="font-weight: 500; color: rgba(60,40,30,0.45);">· 최근 7일 × 24시간 (UTC)</span></span>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 11px; height: 11px; border-radius: 3px; background: #c8871c;"></span>시정 저하 / 안개</span>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 11px; height: 11px; border-radius: 3px; background: #6b8cae;"></span>강수</span>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 11px; height: 11px; border-radius: 3px; background: #7f0d00;"></span>활주로 전환</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <sc-for list="{{ heatRows }}" as="row" hint-placeholder-count="7">
+                  <div style="display: flex; align-items: center; gap: 3px;">
+                    <span style="width: 44px; font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.55); flex-shrink: 0;">{{ row.day }}</span>
+                    <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="24">
+                      <div onClick="{{ c.open }}" title="{{ c.t }}" style="flex: 1; height: 16px; border-radius: 3px; background: {{ c.bg }};" style-hover="box-shadow: inset 0 0 0 1.5px rgba(40,20,15,0.4)"></div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="display: flex; gap: 3px; padding-top: 2px;">
+                  <span style="width: 44px; flex-shrink: 0;"></span>
+                  <div style="flex: 1; display: flex; justify-content: space-between; font-size: 10px; color: rgba(60,40,30,0.4);"><span>00시</span><span>06시</span><span>12시</span><span>18시</span><span>23시</span></div>
+                </div>
+              </div>
+              <span style="font-size: 11px; color: rgba(60,40,30,0.5);">03–06시 구간에 시정 저하가 반복 — 새벽 안개 패턴</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px;">
+              <!-- 갱신 빈도 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); flex: 1;">정보문자 갱신 빈도 <span style="font-weight: 500; color: rgba(60,40,30,0.45);">· 시간당 발행 횟수</span></span>
+                  <span style="font-size: 11px; color: rgba(60,40,30,0.55);">최다 {{ maxUpd }}회/시 · <span style="color: #b4451c; font-weight: 700;">■</span> 임시 갱신 포함</span>
+                </div>
+                <div style="display: flex; align-items: flex-end; gap: 3px; height: 86px;">
+                  <sc-for list="{{ updBars }}" as="u" hint-placeholder-count="24">
+                    <div onClick="{{ u.open }}" title="{{ u.tt }}" style="flex: 1; height: {{ u.hgt }}; border-radius: 3px 3px 0 0; background: {{ u.bg }};" style-hover="filter: brightness(0.82)"></div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: rgba(60,40,30,0.4);"><span>00시</span><span>06시</span><span>12시</span><span>18시</span><span>23시</span></div>
+              </div>
+              <!-- 구름 + 접근방식 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 12px;">
+                <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">구름 / 접근방식</span>
+                <div style="display: flex; gap: 20px;">
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">CAVOK 비율</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ cavokPct }}</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최저 실링</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ minCeil }}FT</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">BKN 이상</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ bknCount }}건</span></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 7px; padding-top: 4px; border-top: 1px solid rgba(50,30,20,0.07);">
+                  <sc-for list="{{ appBars }}" as="a" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="width: 34px; font-size: 11px; font-weight: 700; color: rgba(60,40,30,0.6); font-family: ui-monospace, 'SF Mono', Menlo, monospace;">{{ a.name }}</span>
+                      <div style="flex: 1; height: 10px; border-radius: 5px; background: rgba(50,30,20,0.06); overflow: hidden;"><div style="height: 100%; border-radius: 5px; background: {{ a.fill }}; width: {{ a.w }};"></div></div>
+                      <span style="width: 32px; text-align: right; font-size: 11px; color: rgba(60,40,30,0.55);">{{ a.pct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px;">
+              <!-- QNH 추이 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); flex: 1;">QNH 추이 <span style="font-weight: 500; color: rgba(60,40,30,0.45);">· hPa</span></span>
+                  <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(60,40,30,0.6);"><span style="width: 14px; height: 3px; border-radius: 2px; background: #6b8cae;"></span>해면기압</span>
+                </div>
+                <svg viewBox="0 0 560 130" preserveAspectRatio="none" style="width: 100%; height: 82px;">
+                  <line x1="10" y1="120" x2="550" y2="120" stroke="rgba(50,30,20,0.1)"></line>
+                  <line x1="10" y1="65" x2="550" y2="65" stroke="rgba(50,30,20,0.06)"></line>
+                  <line x1="10" y1="10" x2="550" y2="10" stroke="rgba(50,30,20,0.06)"></line>
+                  <polygon points="{{ qnhArea }}" fill="rgba(107,140,174,0.1)"></polygon>
+                  <polyline points="{{ qnhPts }}" fill="none" stroke="#6b8cae" stroke-width="2"></polyline>
+                </svg>
+                <div style="display: flex; gap: 22px;">
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">현재</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ qnhNow }} hPa</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최고</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ qnhMax }}</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최저</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ qnhMin }}</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">변화 폭</span><span style="font-size: 18px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ qnhDelta }} hPa</span></div>
+                </div>
+              </div>
+              <!-- 시정 / 특이기상 -->
+              <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+                <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">시정 / 특이기상</span>
+                <div style="display: flex; gap: 20px;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">시정 저하</span><span style="font-size: 20px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ lowVisCount }}건</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">최저 시정</span><span style="font-size: 20px; font-weight: 700; color: rgba(40,20,15,0.9);">{{ minVis }}KM</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; font-weight: 600; color: rgba(60,40,30,0.45);">TS/CB 보고</span><span style="font-size: 20px; font-weight: 700; color: #b8770a;">{{ tsCount }}건</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 기상 태그 -->
+            <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 10px;">
+              <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">기상현상 태그 빈도 <span style="font-weight: 500; color: rgba(60,40,30,0.45);">· 전문 remarks 토큰</span></span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <sc-for list="{{ tagChips }}" as="tg" hint-placeholder-count="5">
+                  <div style="display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(50,30,20,0.1); background: #fafafb;">
+                    <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; font-weight: 700; color: rgba(40,20,15,0.85);">{{ tg.tag }}</span>
+                    <span style="font-size: 11px; color: rgba(60,40,30,0.5);">{{ tg.desc }}</span>
+                    <span style="font-size: 11px; font-weight: 800; color: #7f0d00;">{{ tg.n }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0;">
+            <iframe src="./map.html" ref="{{ mapRef }}" onLoad="{{ onMapLoad }}" style="position: absolute; inset: 0; width: 100%; height: 100%; border: 0;"></iframe>
+
+            <div style="position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px; width: 210px;">
+              <div style="background: rgba(253,252,252,0.94); backdrop-filter: blur(10px); border: 1px solid rgba(50,30,20,0.1); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 16px rgba(50,35,25,0.15); display: flex; flex-direction: column; gap: 6px;">
+                <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">선택 시각 ATIS · {{ mapCur.time }}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="width: 26px; height: 26px; border-radius: 7px; background: #7f0d00; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800;">{{ mapCur.letter }}</span>
+                  <span style="font-size: 12px; font-weight: 600; color: rgba(40,20,15,0.85);">{{ mapCur.wind }} · RWY {{ mapCur.rwy }}</span>
+                </div>
+                <span style="font-size: 11px; color: rgba(60,40,30,0.55);">VIS {{ mapCur.visTxt }} · {{ mapCur.cloud }} · QNH {{ mapCur.qnh }}</span>
+              </div>
+              <div style="background: rgba(253,252,252,0.94); backdrop-filter: blur(10px); border: 1px solid rgba(50,30,20,0.1); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 16px rgba(50,35,25,0.15); display: flex; flex-direction: column; gap: 7px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: rgba(60,40,30,0.45);">BIRD ACTIVITY</span>
+                  <span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(224,90,43,0.14); color: #b4451c;">보고 3건</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(60,40,30,0.7);"><span style="width: 9px; height: 9px; border-radius: 50%; background: #e05a2b; flex-shrink: 0;"></span><span>HVY FLOCK · 5NM NW · 큰 무리</span></div>
+                <div style="display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(60,40,30,0.7);"><span style="width: 9px; height: 9px; border-radius: 50%; background: #d98a0c; flex-shrink: 0;"></span><span>LGT FLOCK · 3NM NE · 작은 무리</span></div>
+                <div style="display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(60,40,30,0.7);"><span style="width: 9px; height: 9px; border-radius: 50%; background: #d98a0c; flex-shrink: 0;"></span><span>LGT FLOCK · 2NM SE · 작은 무리</span></div>
+                <div style="border-top: 1px solid rgba(50,30,20,0.07); padding-top: 6px; font-size: 11px; color: rgba(60,40,30,0.55);">최근 7일 충돌/회피 보고 2건</div>
+              </div>
+            </div>
+
+            <!-- 타임 스크러버 -->
+            <div style="position: absolute; left: 0; right: 0; bottom: 0; background: rgba(253,252,252,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(50,30,20,0.1); padding: 10px 18px 12px; box-shadow: 0 -4px 16px rgba(50,35,25,0.1); display: flex; align-items: center; gap: 14px;">
+              <div onClick="{{ togglePlay }}" style="width: 38px; height: 38px; border-radius: 50%; background: #7f0d00; display: flex; align-items: center; justify-content: center; cursor: default; flex-shrink: 0;" style-hover="background: #5c0900">
+                <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}">
+                  <svg width="13" height="13" viewBox="0 0 13 13"><rect x="2" y="1.5" width="3.2" height="10" rx="1" fill="#fff"></rect><rect x="7.8" y="1.5" width="3.2" height="10" rx="1" fill="#fff"></rect></svg>
+                </sc-if>
+                <sc-if value="{{ notPlaying }}" hint-placeholder-val="{{ true }}">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><path d="M4 2.2v9.6c0 .7.8 1.1 1.4.7l7-4.8c.5-.4.5-1.1 0-1.4l-7-4.8C4.8 1.1 4 1.5 4 2.2Z" fill="#fff"></path></svg>
+                </sc-if>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: rgba(60,40,30,0.45); flex: 1;">타임라인 재생 · 풍향(화살표) / 풍속(색상)</span>
+                  <span style="font-size: 12px; font-weight: 800; color: #7f0d00; font-family: ui-monospace, 'SF Mono', Menlo, monospace;">{{ mapCur.time }}</span>
+                  <span style="font-size: 11px; color: rgba(60,40,30,0.6);">INFO {{ mapCur.letter }} · {{ mapCur.wind }} · VIS {{ mapCur.visTxt }}</span>
+                </div>
+                <div style="display: flex; align-items: stretch; height: 22px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(50,30,20,0.12);">
+                  <sc-for list="{{ windCells }}" as="c" hint-placeholder-count="16">
+                    <div onClick="{{ c.pick }}" title="{{ c.tt }}" style="flex: 1; background: {{ c.bg }}; display: flex; align-items: center; justify-content: center; cursor: default; box-shadow: {{ c.shadow }};" style-hover="filter: brightness(1.12)">
+                      <svg width="9" height="9" viewBox="0 0 12 12" style="display: {{ c.arrowDisp }}; transform: rotate({{ c.rot }}); flex-shrink: 0; opacity: {{ c.op }};"><path d="M6 11V1.6M6 1.6 3 4.8M6 1.6l3 3.2" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 10px; color: rgba(60,40,30,0.4);">
+                  <span style="flex: 1;">{{ firstTime }}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #5b8bc9;"></span><span>≤6KT</span></div>
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #4aa88c;"></span><span>9</span></div>
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #8fb84e;"></span><span>12</span></div>
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #d9b83a;"></span><span>15</span></div>
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #e08a35;"></span><span>18</span></div>
+                    <div style="display: flex; align-items: center; gap: 3px;"><span style="width: 10px; height: 7px; border-radius: 2px; background: #c8422e;"></span><span>19KT+</span></div>
+                  </div>
+                  <span style="flex: 1; text-align: right;">{{ lastTime }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isImport }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 18px 20px; max-width: 760px;">
+            <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85);">감시 폴더</span>
+                <span style="font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: rgba(40,160,70,0.12); color: #1d7a35;">감시 중</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; background: #f4f4f7; border-radius: 8px; padding: 10px 12px;">
+                <svg width="15" height="15" viewBox="0 0 15 15"><path d="M1.5 4.5A1.5 1.5 0 0 1 3 3h3l1.5 1.5H12A1.5 1.5 0 0 1 13.5 6v5A1.5 1.5 0 0 1 12 12.5H3A1.5 1.5 0 0 1 1.5 11V4.5Z" fill="none" stroke="rgba(60,40,30,0.55)" stroke-width="1.4"></path></svg>
+                <span style="flex: 1; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: rgba(40,20,15,0.8);">~/Documents/ATIS/RKSS</span>
+                <div style="padding: 5px 12px; border-radius: 7px; border: 1px solid rgba(50,30,20,0.14); background: #fff; font-size: 12px; font-weight: 600; color: rgba(40,20,15,0.8);" style-hover="background: rgba(0,0,0,0.04)">폴더 변경</div>
+                <div style="padding: 5px 12px; border-radius: 7px; border: 1px solid rgba(50,30,20,0.14); background: #fff; font-size: 12px; font-weight: 600; color: rgba(40,20,15,0.8);" style-hover="background: rgba(0,0,0,0.04)">일시중지</div>
+              </div>
+              <div style="display: flex; gap: 24px; font-size: 12px; color: rgba(60,40,30,0.6);">
+                <span>파일 형식 · .txt / .log / .csv</span>
+                <span>인코딩 · UTF-8</span>
+                <span>파싱 규칙 · RKSS ATIS</span>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid rgba(50,30,20,0.08); border-radius: 12px; box-shadow: 0 1px 3px rgba(50,35,25,0.05); overflow: hidden;">
+              <div style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.85); border-bottom: 1px solid rgba(50,30,20,0.07);">최근 가져온 파일</div>
+              <sc-for list="{{ files }}" as="f" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(50,30,20,0.05);">
+                  <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: rgba(40,20,15,0.8); flex: 1;">{{ f.name }}</span>
+                  <span style="font-size: 12px; color: rgba(60,40,30,0.55);">{{ f.count }}건</span>
+                  <span style="font-size: 12px; color: rgba(60,40,30,0.45); width: 110px; text-align: right;">{{ f.at }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+
+    <sc-if value="{{ rawOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeRaw }}" style="position: absolute; inset: 0; z-index: 60; background: rgba(30,15,10,0.34); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center;">
+        <div onClick="{{ stopProp }}" style="width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 24px 60px rgba(30,15,10,0.4); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 28px; height: 28px; border-radius: 7px; background: #7f0d00; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0;">{{ rawRec.letter }}</span>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 13px; font-weight: 700; color: rgba(40,20,15,0.9);">원문 전문 · INFO {{ rawRec.letter }}</span>
+              <span style="font-size: 11px; color: rgba(60,40,30,0.5);">{{ rawRec.time }} · {{ rawPos }}</span>
+            </div>
+            <div style="flex: 1;"></div>
+            <div onClick="{{ rawPrev }}" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(50,30,20,0.12); display: flex; align-items: center; justify-content: center;" style-hover="background: rgba(0,0,0,0.04)"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5 3 5l3.5 3.5" stroke="rgba(60,40,30,0.7)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+            <div onClick="{{ rawNext }}" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(50,30,20,0.12); display: flex; align-items: center; justify-content: center;" style-hover="background: rgba(0,0,0,0.04)"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 1.5 7 5 3.5 8.5" stroke="rgba(60,40,30,0.7)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+            <div onClick="{{ closeRaw }}" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(50,30,20,0.12); display: flex; align-items: center; justify-content: center;" style-hover="background: rgba(0,0,0,0.04)"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 1.5 7.5 7.5M7.5 1.5 1.5 7.5" stroke="rgba(60,40,30,0.7)" stroke-width="1.6" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">WIND {{ rawRec.wind }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">VIS {{ rawRec.visTxt }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">{{ rawRec.cloud }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">{{ rawTdp }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">QNH {{ rawRec.qnh }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">RWY {{ rawRec.rwy }}</span>
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 600; color: rgba(40,20,15,0.75); background: #fafafb; border: 1px solid rgba(50,30,20,0.1); border-radius: 999px; padding: 4px 10px;">{{ rawRec.app }} APCH</span>
+          </div>
+          <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; line-height: 1.75; color: rgba(40,20,15,0.85); background: #f4f4f7; border: 1px solid rgba(50,30,20,0.07); border-radius: 8px; padding: 12px 14px;">{{ rawRec.raw }}</div>
+          <span style="font-size: 11px; color: rgba(60,40,30,0.45);">← → 이전·다음 · ESC 닫기</span>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;xwLimit&quot;: {&quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 15, &quot;min&quot;: 10, &quot;max&quot;: 25, &quot;step&quot;: 1, &quot;unit&quot;: &quot;KT&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;분석&quot;}, &quot;showVisCircle&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;지도&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'stats', mapIdx: 47, playing: false, windViz: true, range: '24h', rawIdx: null };
+  componentDidMount() {
+    this._key = (e) => {
+      if (this.state.rawIdx == null) return;
+      if (e.key === 'ArrowLeft') this.openRaw(this.state.rawIdx - 1);
+      else if (e.key === 'ArrowRight') this.openRaw(this.state.rawIdx + 1);
+      else if (e.key === 'Escape') this.setState({ rawIdx: null });
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { clearInterval(this._timer); window.removeEventListener('keydown', this._key); }
+  openRaw(i) { this.setState({ rawIdx: Math.max(0, Math.min(i, this.recs().length - 1)) }); }
+  openRawAtHour(h) {
+    const recs = this.recs();
+    for (let i = recs.length - 1; i >= 0; i--) if (recs[i].hour === h) return this.openRaw(i);
+  }
+  exportCsv() {
+    const recs = this.recs();
+    const rows = [['time', 'info', 'wind', 'vis_km', 'cloud', 'temp_c', 'dewpoint_c', 'qnh_hpa', 'rwy', 'apch', 'wx', 'raw']];
+    recs.forEach(r => rows.push([r.time, r.letter, r.wind, r.vis, r.cloud, r.t, r.dp, r.qnh, r.rwy, r.app, r.tags.join(' '), '"' + r.raw + '"']));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }));
+    a.download = 'rkss_atis_' + this.state.range + '.csv';
+    a.click();
+  }
+  syncMap() {
+    const el = this._mapEl;
+    if (!el || !el.contentWindow) return;
+    const recs = this.recs();
+    const r = recs[Math.min(this.state.mapIdx, recs.length - 1)];
+    el.contentWindow.postMessage({ type: 'atis', dir: r.dir, spd: r.spd, vis: r.vis, visTxt: r.visTxt, showVis: this.props.showVisCircle ?? true, showWind: this.state.windViz }, '*');
+  }
+  componentDidUpdate() { this.syncMap(); }
+  togglePlay() {
+    if (this.state.playing) {
+      clearInterval(this._timer);
+      this.setState({ playing: false });
+      return;
+    }
+    const last = this.recs().length - 1;
+    const start = this.state.mapIdx >= last ? 0 : this.state.mapIdx;
+    this.setState({ playing: true, mapIdx: start });
+    this._timer = setInterval(() => {
+      this.setState(s => {
+        if (s.mapIdx >= last) { clearInterval(this._timer); return { playing: false }; }
+        return { mapIdx: s.mapIdx + 1 };
+      });
+    }, 350);
+  }
+  recs() {
+    const range = this.state.range || '24h';
+    this._recsCache = this._recsCache || {};
+    if (this._recsCache[range]) return this._recsCache[range];
+    const [count, step] = { '24h': [48, 30], '7d': [168, 60], '30d': [240, 180] }[range];
+    const multi = range !== '24h';
+    const end = Date.UTC(2026, 7, 15, 12, 0);
+    let seed = 42;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const recs = [];
+    let qnh = 1014.2, dir = 322, spd = 10;
+    for (let i = 0; i < count; i++) {
+      const d = new Date(end - (count - 1 - i) * step * 60000);
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mm = String(d.getUTCMinutes()).padStart(2, '0');
+      const dayTag = String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+      const f = i / count;
+      qnh += (rnd() - 0.47) * 0.9;
+      dir = dir + (rnd() - 0.5) * 26;
+      if (f > 0.33 && f < 0.48) dir -= 17; else if (f > 0.56 && f < 0.69) dir += 19;
+      dir = ((dir % 360) + 360) % 360;
+      spd = Math.max(4, Math.min(19, spd + (rnd() - 0.5) * 3.4));
+      if (f > 0.41 && f < 0.46) spd = 21;
+      const q = Math.round(qnh);
+      const vis = rnd() < 0.12 ? (4 + Math.round(rnd() * 4)) : 10;
+      let cloud, ceil = null;
+      if (vis < 10) { cloud = 'BKN008'; ceil = 800; }
+      else { const c = rnd(); if (c < 0.28) cloud = 'CAVOK'; else if (c < 0.62) cloud = 'SCT025'; else { cloud = 'BKN020'; ceil = 2000; } }
+      const t = 22 + Math.round(rnd() * 4);
+      const dp = vis < 10 ? t - 1 : t - 4 - Math.round(rnd() * 3);
+      const rwy = (dir > 250 || dir < 70) ? '32L/32R' : '14L/14R';
+      const hdg = rwy[0] === '3' ? 323 : 143;
+      const rel = (dir - hdg) * Math.PI / 180;
+      const d10 = (Math.round(dir / 10) * 10) % 360 || 360;
+      const s = Math.round(spd);
+      const xw = Math.abs(s * Math.sin(rel));
+      const tw = Math.max(0, -s * Math.cos(rel));
+      const ar = rnd();
+      const app = ar < 0.78 ? 'ILS' : ar < 0.92 ? 'RNP' : 'VOR';
+      const tags = [];
+      if (vis < 10) tags.push(vis <= 6 ? 'BR' : 'HZ');
+      if (rnd() < 0.1) tags.push('RA');
+      if (f > 0.43 && f < 0.48) tags.push('TS');
+      const L = letters[i % 26];
+      const visTxt = vis >= 10 ? '10KM' : vis + 'KM';
+      recs.push({
+        time: (multi ? dayTag + ' ' : '') + hh + mm + 'Z', hour: d.getUTCHours(), letter: L, dir, spd: s, vis, cloud, ceil, t, dp, qnh: q, rwy, xw, tw, app, tags,
+        wind: String(d10).padStart(3, '0') + '/' + String(s).padStart(2, '0') + 'KT',
+        visTxt,
+        raw: 'RKSS ATIS INFO ' + L + ' ' + hh + mm + 'Z. ' + app + ' APCH RWY ' + rwy.replace('/', ' AND ') +
+          '. WIND ' + String(d10).padStart(3, '0') + '/' + String(s).padStart(2, '0') + 'KT. VIS ' + visTxt +
+          '. ' + cloud + '. T' + t + '/DP' + dp + '. QNH ' + q + 'HPA. TRL 140. ACK INFO ' + L + '.'
+      });
+    }
+    this._recsCache[range] = recs;
+    return recs;
+  }
+  heat() {
+    if (this._heat) return this._heat;
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const days = ['08-09', '08-10', '08-11', '08-12', '08-13', '08-14', '08-15'];
+    const C = { fog: '#c8871c', rain: '#6b8cae', rwy: '#7f0d00' };
+    const N = { fog: '시정 저하', rain: '강수', rwy: '활주로 전환' };
+    this._heat = days.map((day, di) => {
+      const fog = rnd() < 0.6, rain = di === 1 || di === 4;
+      const cells = [];
+      for (let h = 0; h < 24; h++) {
+        const ev = [];
+        if (fog && h >= 3 && h <= 6) ev.push('fog');
+        if (rain && h >= 13 && h <= 16) ev.push('rain');
+        if (rnd() < (ev.length ? 0.3 : 0.05)) ev.push('rwy'); // 전환은 기상 이벤트 시간대에 몰림
+        const label = day + ' ' + String(h).padStart(2, '0') + '시 · ';
+        let bg, t;
+        if (!ev.length) { bg = 'rgba(50,30,20,0.05)'; t = label + '정상'; }
+        else if (ev.length === 1) { bg = C[ev[0]]; t = label + N[ev[0]]; }
+        else {
+          bg = 'linear-gradient(90deg, ' + C[ev[0]] + ' 0 50%, ' + C[ev[1]] + ' 50% 100%)';
+          t = label + ev.map(e => N[e]).join(' + ');
+        }
+        cells.push({ bg, t });
+      }
+      return { day, cells };
+    });
+    return this._heat;
+  }
+  sector(cx, cy, r0, r1, a0, a1) {
+    const p = (r, a) => (cx + r * Math.sin(a)).toFixed(1) + ',' + (cy - r * Math.cos(a)).toFixed(1);
+    return 'M' + p(r0, a0) + ' L' + p(r1, a0) + ' A' + r1.toFixed(1) + ' ' + r1.toFixed(1) + ' 0 0 1 ' + p(r1, a1) +
+      ' L' + p(r0, a1) + ' A' + r0.toFixed(1) + ' ' + r0.toFixed(1) + ' 0 0 0 ' + p(r0, a0) + ' Z';
+  }
+  linePts(vals, h, min, max) {
+    const w = 560, pad = 10, rng = (max - min) || 1;
+    return vals.map((v, i) => {
+      const x = pad + (w - 2 * pad) * i / (vals.length - 1);
+      const y = h - pad - (h - 2 * pad) * ((v - min) / rng);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+  }
+  renderVals() {
+    const view = this.state.view;
+    const xwLimit = this.props.xwLimit ?? 15;
+    const showVisCircle = this.props.showVisCircle ?? true;
+    const recs = this.recs();
+    const cur = recs[recs.length - 1];
+    const range = this.state.range;
+    const qnhs = recs.map(r => r.qnh);
+    const qnhMinV = Math.min(...qnhs), qnhMaxV = Math.max(...qnhs);
+    const qnhPts = this.linePts(qnhs, 130, qnhMinV - 0.5, qnhMaxV + 0.5);
+    const rr = this.state.rawIdx != null ? recs[Math.min(this.state.rawIdx, recs.length - 1)] : {};
+    // 온도/노점
+    const temps = recs.map(r => r.t), dps = recs.map(r => r.dp);
+    const tMin = Math.min(...dps) - 1, tMax = Math.max(...temps) + 1;
+    const spreads = recs.map(r => r.t - r.dp);
+    const spreadMin = Math.min(...spreads);
+    // 바람 장미
+    const rose = Array.from({ length: 8 }, () => [0, 0, 0]);
+    recs.forEach(r => { const d = Math.round(r.dir / 45) % 8; const b = r.spd < 8 ? 0 : r.spd < 14 ? 1 : 2; rose[d][b]++; });
+    const totals = rose.map(a => a[0] + a[1] + a[2]);
+    const maxT = Math.max(...totals);
+    const roseDs = ['', '', ''];
+    rose.forEach((bins, i) => {
+      const tot = totals[i]; if (!tot) return;
+      const R = 12 + (tot / maxT) * 66;
+      let r0 = 6;
+      const aC = i * Math.PI / 4, hw = 17 * Math.PI / 180;
+      bins.forEach((n, bi) => {
+        if (!n) return;
+        const r1 = r0 + (R - 6) * (n / tot);
+        roseDs[bi] += this.sector(100, 100, r0, r1, aC - hw, aC + hw) + ' ';
+        r0 = r1;
+      });
+    });
+    const dirLabels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const domI = totals.indexOf(maxT);
+    // 측풍/배풍
+    const xws = recs.map(r => r.xw);
+    const xwScale = Math.max(20, xwLimit + 5);
+    const xwPts = this.linePts(xws, 130, 0, xwScale);
+    const thY = (130 - 10 - 110 * (xwLimit / xwScale)).toFixed(1);
+    const xwExceed = recs.filter(r => r.xw > xwLimit).length;
+    // 활주로
+    const c32 = recs.filter(r => r.rwy[0] === '3').length;
+    const p32 = Math.round(c32 / recs.length * 100), p14 = 100 - p32;
+    const rwyEvents = [];
+    recs.forEach((r, i) => {
+      if (i > 0 && r.rwy !== recs[i - 1].rwy) rwyEvents.push({
+        left: (i / (recs.length - 1) * 100).toFixed(1) + '%',
+        time: r.time, label: recs[i - 1].rwy.slice(0, 2) + ' → ' + r.rwy.slice(0, 2), wind: r.wind, open: () => this.openRaw(i)
+      });
+    });
+    // 근접 이벤트는 마지막 것만 남겨 최소 7% 간격 확보 (라벨 겹침 방지)
+    const evSpaced = [];
+    rwyEvents.forEach(e => {
+      const x = parseFloat(e.left);
+      while (evSpaced.length && x - parseFloat(evSpaced[evSpaced.length - 1].left) < 7) evSpaced.pop();
+      evSpaced.push(e);
+    });
+    // 갱신 빈도
+    const upd = Array.from({ length: 24 }, () => 2);
+    recs.forEach((r, i) => {
+      const h = r.hour;
+      if (i > 0 && r.rwy !== recs[i - 1].rwy) upd[h]++;
+      if (r.vis < 10) upd[h]++;
+    });
+    const maxUpd = Math.max(...upd);
+    const updBars = upd.map((n, h) => ({
+      hgt: Math.round(n / maxUpd * 100) + '%',
+      bg: n > 2 + ({ '24h': 0, '7d': 2, '30d': 4 })[range] ? '#b4451c' : 'rgba(127,13,0,0.4)',
+      tt: String(h).padStart(2, '0') + '시 · ' + n + '회', open: () => this.openRawAtHour(h)
+    }));
+    // 구름 / 접근
+    const cavok = recs.filter(r => r.cloud === 'CAVOK').length;
+    const ceils = recs.filter(r => r.ceil).map(r => r.ceil);
+    const appCols = { ILS: '#7f0d00', RNP: '#b4451c', VOR: '#8c7a6e' };
+    const appBars = ['ILS', 'RNP', 'VOR'].map(name => {
+      const n = recs.filter(r => r.app === name).length;
+      const p = Math.round(n / recs.length * 100);
+      return { name, w: p + '%', pct: p + '%', fill: appCols[name] };
+    });
+    // 기상 태그
+    const tagDescs = { BR: '박무', HZ: '연무', RA: '비', TS: '뇌전', FG: '안개' };
+    const tagCnt = {};
+    recs.forEach(r => r.tags.forEach(tg => { tagCnt[tg] = (tagCnt[tg] || 0) + 1; }));
+    const tagChips = Object.keys(tagCnt).sort((a, b) => tagCnt[b] - tagCnt[a])
+      .map(tag => ({ tag, n: tagCnt[tag], desc: tagDescs[tag] || '' }));
+    const lowVis = recs.filter(r => r.vis < 10);
+    // 지도
+    const mi = Math.min(this.state.mapIdx, recs.length - 1);
+    const mapCur = recs[mi];
+    const sel = '#7f0d00';
+    return {
+      isStats: view === 'stats', isMap: view === 'map', isImport: view === 'import',
+      viewTitle: view === 'stats' ? '통계 분석' : view === 'map' ? '지도' : '설정',
+      navStats: view === 'stats' ? sel : 'transparent',
+      navMap: view === 'map' ? sel : 'transparent',
+      navImport: view === 'import' ? sel : 'transparent',
+      navStatsFg: view === 'stats' ? '#fff' : 'rgba(40,20,15,0.85)',
+      navMapFg: view === 'map' ? '#fff' : 'rgba(40,20,15,0.85)',
+      navImportFg: view === 'import' ? '#fff' : 'rgba(40,20,15,0.85)',
+      navStatsIc: view === 'stats' ? 'rgba(255,255,255,0.85)' : 'rgba(60,40,30,0.5)',
+      navMapIc: view === 'map' ? 'rgba(255,255,255,0.85)' : 'rgba(60,40,30,0.5)',
+      navImportIc: view === 'import' ? 'rgba(255,255,255,0.85)' : 'rgba(60,40,30,0.5)',
+      navStatsHov: view === 'stats' ? '#7f0d00' : 'rgba(50,30,20,0.06)',
+      navMapHov: view === 'map' ? '#7f0d00' : 'rgba(50,30,20,0.06)',
+      navImportHov: view === 'import' ? '#7f0d00' : 'rgba(50,30,20,0.06)',
+      goStats: () => this.setState({ view: 'stats' }),
+      goMap: () => this.setState({ view: 'map' }),
+      goImport: () => this.setState({ view: 'import' }),
+      firstTime: recs[0].time, lastTime: cur.time, total: recs.length,
+      topRwy: p32 >= 50 ? '32L/32R' : '14L/14R',
+      avgQnh: Math.round(qnhs.reduce((a, b) => a + b, 0) / qnhs.length),
+      tempPts: this.linePts(temps, 130, tMin, tMax),
+      dpPts: this.linePts(dps, 130, tMin, tMax),
+      spreadNow: cur.t - cur.dp, spreadMin, fogRisk: spreadMin <= 2,
+      roseD0: roseDs[0].trim(), roseD1: roseDs[1].trim(), roseD2: roseDs[2].trim(),
+      domDir: dirLabels[domI], domPct: Math.round(maxT / recs.length * 100) + '%',
+      xwLimit, xwPts, xwArea: xwPts + ' 550,120 10,120', thY,
+      maxXw: Math.round(Math.max(...xws)), xwExceed,
+      xwExColor: xwExceed > 0 ? '#b4451c' : 'rgba(40,20,15,0.9)',
+      maxTw: Math.round(Math.max(...recs.map(r => r.tw))),
+      rwy32w: p32 + '%', rwy32p: p32 + '%', rwy14w: p14 + '%', rwy14p: p14 + '%',
+      rwyEvents: evSpaced.slice(-5),
+      heatRows: this.heat().map(row => ({ day: row.day, cells: row.cells.map((c, h) => ({ bg: c.bg, t: c.t, open: () => this.openRawAtHour(h) })) })),
+      updBars, maxUpd, interval: { '24h': '30분', '7d': '1시간', '30d': '3시간' }[range],
+      cavokPct: Math.round(cavok / recs.length * 100) + '%',
+      minCeil: ceils.length ? Math.min(...ceils) : '—',
+      bknCount: ceils.length,
+      appBars, tagChips,
+      lowVisCount: lowVis.length,
+      minVis: lowVis.length ? Math.min(...lowVis.map(r => r.vis)) : 10,
+      tsCount: recs.filter(r => r.tags.includes('TS')).length,
+      qnhPts, qnhArea: qnhPts + ' 550,120 10,120',
+      qnhNow: cur.qnh, qnhMax: Math.round(qnhMaxV), qnhMin: Math.round(qnhMinV),
+      qnhDelta: (qnhMaxV - qnhMinV).toFixed(1),
+      setR24: () => this.setState({ range: '24h' }), setR7: () => this.setState({ range: '7d' }), setR30: () => this.setState({ range: '30d' }),
+      r24Bg: range === '24h' ? 'rgba(127,13,0,0.1)' : 'transparent', r24Fg: range === '24h' ? '#7f0d00' : 'rgba(60,40,30,0.6)',
+      r7Bg: range === '7d' ? 'rgba(127,13,0,0.1)' : 'transparent', r7Fg: range === '7d' ? '#7f0d00' : 'rgba(60,40,30,0.6)',
+      r30Bg: range === '30d' ? 'rgba(127,13,0,0.1)' : 'transparent', r30Fg: range === '30d' ? '#7f0d00' : 'rgba(60,40,30,0.6)',
+      exportCsv: () => this.exportCsv(),
+      rawOpen: this.state.rawIdx != null, rawRec: rr,
+      rawTdp: rr.t != null ? 'T' + rr.t + '° / DP' + rr.dp + '°' : '',
+      rawPos: this.state.rawIdx != null ? (Math.min(this.state.rawIdx, recs.length - 1) + 1) + ' / ' + recs.length : '',
+      closeRaw: () => this.setState({ rawIdx: null }),
+      rawPrev: () => this.openRaw(this.state.rawIdx - 1),
+      rawNext: () => this.openRaw(this.state.rawIdx + 1),
+      stopProp: (e) => e.stopPropagation(),
+      showVisCircle, mapCur,
+      mapIdx: mi, scrubMax: recs.length - 1,
+      windCells: recs.map((r, i) => ({
+        bg: r.spd <= 6 ? '#5b8bc9' : r.spd <= 9 ? '#4aa88c' : r.spd <= 12 ? '#8fb84e' : r.spd <= 15 ? '#d9b83a' : r.spd <= 18 ? '#e08a35' : '#c8422e',
+        rot: ((Math.round(r.dir) + 180) % 360) + 'deg',
+        tt: r.time + ' · ' + r.wind,
+        arrowDisp: recs.length > 96 ? 'none' : 'block',
+        shadow: i === mi ? 'inset 0 0 0 2px #fff, inset 0 0 0 3.5px rgba(0,0,0,0.4)' : 'none',
+        op: i === mi ? 1 : 0.8,
+        pick: () => { clearInterval(this._timer); this.setState({ mapIdx: i, playing: false }); }
+      })),
+      playing: this.state.playing, notPlaying: !this.state.playing,
+      togglePlay: () => this.togglePlay(),
+      mapRef: (el) => { this._mapEl = el; },
+      toggleWindViz: () => this.setState(s => ({ windViz: !s.windViz })),
+      windVizBorder: this.state.windViz ? 'rgba(127,13,0,0.3)' : 'rgba(50,30,20,0.12)',
+      windVizBg: this.state.windViz ? 'rgba(127,13,0,0.07)' : '#fff',
+      windVizFg: this.state.windViz ? '#7f0d00' : 'rgba(60,40,30,0.6)',
+      windVizTrack: this.state.windViz ? '#7f0d00' : 'rgba(50,30,20,0.25)',
+      windVizKnob: this.state.windViz ? '12px' : '2px',
+      onMapLoad: () => this.syncMap(),
+      files: [
+        { name: 'rkss_atis_20260815.log', count: 22, at: '오늘 14:02' },
+        { name: 'rkss_atis_20260814.log', count: 48, at: '어제 23:58' },
+        { name: 'rkss_atis_20260813.log', count: 48, at: '08-13 23:59' },
+        { name: 'rkss_atis_202608_backfill.csv', count: 1296, at: '08-12 09:14' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
