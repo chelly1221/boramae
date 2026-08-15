@@ -8,14 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 통계 분석 / 지도 시각화 / 원문 열람을 제공하는 Tauri v2 데스크탑 앱. 사용자는 KAC 보라매(항공 운영·관제 지원) 담당자.
 
 - Remote: git@github.com:chelly1221/boramae.git
-- Status: `create-tauri-app` (react-ts) 스캐폴딩 완료. 디자인 구현 전.
+- Status: 디자인 시안 전체를 React로 데모 구현 완료 (목데이터). 다음 단계는 Rust 백엔드(폴더 감시·파서·DB) 연결.
 
 ## Tech Stack
 
-- **Tauri v2** (`src-tauri/`, crate `boramae`, lib `boramae_lib`) — Rust 백엔드: 폴더 감시(`notify` crate) → ATIS 파싱 → 로컬 DB → 프론트로 이벤트 push (예정)
-- **React 19 + TypeScript + Vite 7** (`src/`) — 프론트엔드
-- 지도: Leaflet 직접 통합 예정 (디자인의 iframe 대신)
-- CSV 저장: Tauri 파일 저장 다이얼로그 (`tauri-plugin-dialog`) 예정
+- **Tauri v2** (`src-tauri/`, crate `boramae`, lib `boramae_lib`) — Rust 백엔드. 현재 커맨드: `save_text_file(path, contents)`.
+  예정: 폴더 감시(`notify` crate) → ATIS 파싱 → 로컬 DB → 프론트로 이벤트 push
+- **React 19 + TypeScript + Vite 7** (`src/`) — 프론트엔드. 스타일은 `src/styles.css` 단일 파일(BEM식 클래스 + CSS 변수 토큰), CSS-in-JS/UI 라이브러리 없음
+- 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`), OSM 타일
+- CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
 - 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680)
 
 ## Commands
@@ -58,14 +59,35 @@ High-fidelity: 색·타이포·간격은 최종 의도값. Primary `#7f0d00`, �
 ## Architecture
 
 ```
-src/                 React 프론트 (현재 create-tauri-app 기본 템플릿, 교체 예정)
+src/
+  main.tsx                     엔트리 (styles.css import)
+  App.tsx                      전역 상태(view/range/mapIdx/playing/windViz/rawIdx), 재생 타이머, 뷰 라우팅
+  styles.css                   디자인 토큰 + 전 컴포넌트 스타일
+  data/
+    types.ts                   AtisRecord 등 도메인 타입
+    mock.ts                    시드 목데이터 (getRecords(range), getHeatRows()) — 백엔드 연결 시 대체 대상
+    stats.ts                   computeStats(recs, range, xwLimit): 모든 파생값 (KPI·차트 points·바람장미 path·이벤트 등)
+    csv.ts                     exportCsv (Tauri 다이얼로그 / Blob 폴백)
+  components/
+    Sidebar.tsx  Toolbar.tsx  StatsView.tsx  SettingsView.tsx  RawModal.tsx  icons.tsx
+    map/MapView.tsx            지도 뷰 (플로팅 카드 + 타임 스크러버)
+    map/useLeafletMap.ts       Leaflet 마운트 + 정적 레이어(활주로/경로/조류 섹터/충돌 보고) + 시정 원 갱신
+    map/WindCanvas.tsx         바람 파티클 캔버스 (rAF)
 src-tauri/
-  src/main.rs        진입점 → boramae_lib::run()
-  src/lib.rs         Tauri builder, 커맨드 등록
-  tauri.conf.json    창/번들 설정
-  capabilities/      권한 (플러그인 추가 시 여기 갱신)
-design/              디자인 핸드오프 (수정하지 말 것, 참조 전용)
+  src/main.rs                  진입점 → boramae_lib::run()
+  src/lib.rs                   Tauri builder, 플러그인(dialog), 커맨드 등록
+  tauri.conf.json              창/번들 설정
+  capabilities/default.json    권한 (core:default, dialog:default) — 플러그인 추가 시 갱신
+design/                        디자인 핸드오프 (수정하지 말 것, 참조 전용)
 ```
+
+### 프론트 관례
+- 파생값은 컴포넌트에서 계산하지 않고 `data/stats.ts`에 모은다 (디자인의 `renderVals()` 대응).
+- 차트는 인라인 SVG (viewBox 560×130, `linePts`/`areaPts` 헬퍼). 차트 라이브러리 없음.
+- 개발/스크린샷 편의: URL 해시로 초기 상태 지정 가능 — `#view=map&range=7d&raw=3`.
+- 시각 확인은 `npm run dev` 후 Windows Chrome 헤드리스로 스크린샷:
+  `chrome.exe --headless=new --window-size=1280,800 --screenshot=<path> http://127.0.0.1:1420/#view=map`
+  (WSL curl로는 Windows vite에 접근 불가 — 브라우저도 Windows 쪽을 써야 함)
 
 ## Environment / Toolchain
 
@@ -76,6 +98,8 @@ design/              디자인 핸드오프 (수정하지 말 것, 참조 전용
 - Rust/cargo 1.94 + `cargo-tauri`: `/mnt/c/Users/레이더송신소/.cargo/bin/` (WSL PATH에 없음, `.exe`로 직접 호출)
 - Tauri 앱 실행/빌드는 Windows 터미널(PowerShell)에서 하는 것을 기본으로 가정. Linux용 빌드는 지원하지 않음.
 - 주의: `create-tauri-app --force`는 디렉토리 기존 파일을 삭제함 (다시 쓰지 말 것)
+- 앱 아이콘: 원본 `src-tauri/app-icon.png` (1024², 투명 배경) → `npm run tauri icon src-tauri/app-icon.png`로 `src-tauri/icons/` 재생성 (android/ios 폴더는 삭제).
+  아이콘만 바꾼 뒤엔 `touch src-tauri/build.rs` 해야 exe 리소스에 재임베드됨. `public/favicon.png`도 같은 이미지로 맞출 것.
 
 ## Git
 
