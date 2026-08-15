@@ -1,3 +1,4 @@
+import { isTauri } from '../tauri';
 import type { AtisRecord, Range } from './types';
 
 const HEADER = ['time', 'info', 'wind', 'vis_km', 'cloud', 'temp_c', 'dewpoint_c', 'qnh_hpa', 'rwy', 'apch', 'wx', 'raw'];
@@ -14,8 +15,6 @@ export function toCsv(recs: AtisRecord[]): string {
   );
   return '\ufeff' + [HEADER.join(','), ...rows].join('\n');
 }
-
-const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /**
  * CSV 내보내기.

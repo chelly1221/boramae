@@ -15,12 +15,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Tauri v2** (`src-tauri/`, crate `boramae`, lib `boramae_lib`) — Rust 백엔드. 현재 커맨드: `save_text_file(path, contents)`.
   예정: 폴더 감시(`notify` crate) → ATIS 파싱 → 로컬 DB → 프론트로 이벤트 push
 - **React 19 + TypeScript + Vite 7** (`src/`) — 프론트엔드. 스타일은 `src/styles.css` 단일 파일(BEM식 클래스 + CSS 변수 토큰), CSS-in-JS/UI 라이브러리 없음
+- 폰트: **Pretendard Variable** (npm `pretendard`, OFL) — `styles.css` 상단 `@font-face`가 `node_modules`의 woff2(≈2MB)를 참조해 빌드에 번들됨. `--font-sans` 1순위. 모노(`--font-mono`)는 시스템 폰트(Consolas 등)
+- **오프라인 원칙**: 폰트·타일·Leaflet CSS 등 모든 리소스는 빌드에 포함, 런타임 네트워크 요청 없음 (CDN/웹폰트 링크 금지)
 - 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 타일은 전부 오프라인(빌드 포함), 런타임 네트워크 요청 없음:
   - 베이스맵: CARTO Voyager, `tiles.config.json.basemap` 기준 줌 12 한 단계만 (`npm run tiles` → `public/tiles/`)
   - 항공사진 오버레이(토글): 2023 김포공항 항공사진 z12–16, `tiles.config.json.aerial` 기준 원본(`C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023`)에서 복사 (`npm run tiles:aerial` → `public/tiles-aerial/`, ~59MB)
 - 공항 정밀 좌표: `src/data/airport.ts` (RKSS ARP, 활주로 시단 4점, LOC/GP/VOR 위치·주파수·코스 — BRA SUITE config_BRA.js 출처). 활주로 진방위 135/315는 측풍 계산에도 사용
 - CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
-- 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680)
+- 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680), **`decorations: false`** — OS 타이틀바 없이 macOS 스타일 커스텀 타이틀바 사용:
+  - `src/components/TrafficLights.tsx`: 사이드바 상단 신호등(닫기/최소화/확대) — `getCurrentWindow()`로 close/minimize/toggleMaximize, 포커스·최대화 상태 구독. 브라우저(vite dev)에서는 장식만
+  - 드래그 영역: 사이드바(`<aside>`)와 툴바(`<header>`)에 `data-tauri-drag-region="deep"`, 클릭 가능한 묶음(`.nav`, `.airport`, `.toolbar__actions`, `.lights`)은 `"false"`로 제외. 더블클릭 → 최대화 토글은 Tauri 내장(drag.js)
+  - 권한: `capabilities/default.json`에 `core:window:allow-start-dragging / allow-minimize / allow-toggle-maximize / allow-close`
+  - `src/tauri.ts`의 `isTauri()`로 Tauri 웹뷰 여부 판별 (csv.ts, TrafficLights 공용)
 
 ## Commands
 
@@ -68,6 +74,7 @@ src/
   main.tsx                     엔트리 (styles.css import)
   App.tsx                      전역 상태(view/range/mapIdx/playing/windViz/rawIdx), 재생 타이머, 뷰 라우팅
   styles.css                   디자인 토큰 + 전 컴포넌트 스타일
+  tauri.ts                     isTauri() — Tauri 웹뷰/브라우저 구분
   data/
     types.ts                   AtisRecord 등 도메인 타입
     airport.ts                 RKSS 정밀 좌표(ARP/활주로 시단/항행시설) + 측지 헬퍼(destination)
@@ -76,6 +83,7 @@ src/
     csv.ts                     exportCsv (Tauri 다이얼로그 / Blob 폴백)
   components/
     Sidebar.tsx  Toolbar.tsx  StatsView.tsx  SettingsView.tsx  RawModal.tsx  icons.tsx
+    TrafficLights.tsx          macOS 신호등 창 제어 (사이드바 상단) + useTauriWindow 훅
     map/MapView.tsx            지도 뷰 (플로팅 카드 + 타임 스크러버)
     map/useLeafletMap.ts       Leaflet 마운트 + 정적 레이어(활주로/경로/조류 섹터/충돌 보고) + 시정 원 갱신
     map/WindCanvas.tsx         바람 파티클 캔버스 (rAF)
@@ -88,7 +96,7 @@ src-tauri/
   src/main.rs                  진입점 → boramae_lib::run()
   src/lib.rs                   Tauri builder, 플러그인(dialog), 커맨드 등록
   tauri.conf.json              창/번들 설정
-  capabilities/default.json    권한 (core:default, dialog:default) — 플러그인 추가 시 갱신
+  capabilities/default.json    권한 (core:default, core:window:allow-* 창 제어, dialog:default) — 플러그인 추가 시 갱신
 design/                        디자인 핸드오프 (수정하지 말 것, 참조 전용)
 ```
 
