@@ -1,0 +1,16 @@
+{
+  "source": "BRA SUITE image_tiles_Gimpo_2023 (2023 항공사진)",
+  "zoom": [
+    12,
+    16
+  ],
+  "bbox": {
+    "minLon": 126.6229,
+    "minLat": 37.4225,
+    "maxLon": 126.958,
+    "maxLat": 37.6882
+  },
+  "tiles": 4938,
+  "format": "jpg",
+  "copiedAt": "2026-08-15T05:50:02.226Z"
+}

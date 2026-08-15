@@ -15,7 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Tauri v2** (`src-tauri/`, crate `boramae`, lib `boramae_lib`) — Rust 백엔드. 현재 커맨드: `save_text_file(path, contents)`.
   예정: 폴더 감시(`notify` crate) → ATIS 파싱 → 로컬 DB → 프론트로 이벤트 push
 - **React 19 + TypeScript + Vite 7** (`src/`) — 프론트엔드. 스타일은 `src/styles.css` 단일 파일(BEM식 클래스 + CSS 변수 토큰), CSS-in-JS/UI 라이브러리 없음
-- 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 베이스맵은 **오프라인 CARTO 타일** — `tiles.config.json`(스타일/줌/bbox) 기준으로 `npm run tiles`가 `public/tiles/{z}/{x}/{y}.png`에 한 줌만 내려받고, Leaflet은 그 줌을 native로, 나머지는 스케일링. 런타임 네트워크 요청 없음
+- 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 타일은 전부 오프라인(빌드 포함), 런타임 네트워크 요청 없음:
+  - 베이스맵: CARTO Voyager, `tiles.config.json.basemap` 기준 줌 12 한 단계만 (`npm run tiles` → `public/tiles/`)
+  - 항공사진 오버레이(토글): 2023 김포공항 항공사진 z12–16, `tiles.config.json.aerial` 기준 원본(`C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023`)에서 복사 (`npm run tiles:aerial` → `public/tiles-aerial/`, ~59MB)
+- 공항 정밀 좌표: `src/data/airport.ts` (RKSS ARP, 활주로 시단 4점, LOC/GP/VOR 위치·주파수·코스 — BRA SUITE config_BRA.js 출처). 활주로 진방위 135/315는 측풍 계산에도 사용
 - CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
 - 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680)
 
@@ -26,7 +29,8 @@ Windows 툴체인 기준 (아래 Environment 참고). WSL 셸에서 `npm`은 Win
 - `npm install` — 의존성 설치
 - `npm run dev` — Vite 프론트만 (http://localhost:1420)
 - `npm run build` — `tsc && vite build` (타입체크 포함, 프론트 검증용)
-- `npm run tiles` — CARTO 베이스맵 타일 다운로드 (`tiles.config.json` 참조, `--force`로 재다운로드). 타일은 git에 커밋되어 있어 평소엔 불필요
+- `npm run tiles` — CARTO 베이스맵 타일 다운로드 (`tiles.config.json.basemap`, `--force`로 재다운로드). 커밋되어 있어 평소엔 불필요
+- `npm run tiles:aerial` — 항공사진 타일 복사 (`tiles.config.json.aerial.source` → `public/tiles-aerial/`). 원본 없으면 건너뜀
 - `npm run tauri dev` — 앱 개발 실행 (Windows 터미널에서 권장)
 - `npm run tauri build` — 배포 빌드
 - Rust만 검증: `cd src-tauri && cargo check` (WSL에서는 `/mnt/c/Users/레이더송신소/.cargo/bin/cargo.exe check`)
@@ -66,6 +70,7 @@ src/
   styles.css                   디자인 토큰 + 전 컴포넌트 스타일
   data/
     types.ts                   AtisRecord 등 도메인 타입
+    airport.ts                 RKSS 정밀 좌표(ARP/활주로 시단/항행시설) + 측지 헬퍼(destination)
     mock.ts                    시드 목데이터 (getRecords(range), getHeatRows()) — 백엔드 연결 시 대체 대상
     stats.ts                   computeStats(recs, range, xwLimit): 모든 파생값 (KPI·차트 points·바람장미 path·이벤트 등)
     csv.ts                     exportCsv (Tauri 다이얼로그 / Blob 폴백)
@@ -75,8 +80,10 @@ src/
     map/useLeafletMap.ts       Leaflet 마운트 + 정적 레이어(활주로/경로/조류 섹터/충돌 보고) + 시정 원 갱신
     map/WindCanvas.tsx         바람 파티클 캔버스 (rAF)
 public/tiles/                  오프라인 베이스맵 타일 (생성물, `npm run tiles`) + manifest.json
-scripts/fetch-tiles.mjs        타일 다운로더 (Node, fetch)
-tiles.config.json              타일 스타일·줌·bbox 설정 (스크립트와 앱이 공유)
+public/tiles-aerial/           항공사진 타일 z12–16 (생성물, `npm run tiles:aerial`) + manifest.json
+scripts/fetch-tiles.mjs        CARTO 타일 다운로더 (Node, fetch)
+scripts/copy-aerial-tiles.mjs  항공사진 타일 복사기
+tiles.config.json              basemap/aerial 설정 (스크립트와 앱이 공유)
 src-tauri/
   src/main.rs                  진입점 → boramae_lib::run()
   src/lib.rs                   Tauri builder, 플러그인(dialog), 커맨드 등록
@@ -85,10 +92,13 @@ src-tauri/
 design/                        디자인 핸드오프 (수정하지 말 것, 참조 전용)
 ```
 
+### 참고 자료
+- `C:\code\BRA_Gimpo.vol1\` (BRA SUITE, Cesium 기반 전파장애물 분석기) — `js/config_BRA.js`·`facilityDB.xlsx`(공항 좌표 원본), `image_tiles_Gimpo_2023/`(항공사진 z0–18, 999MB), `reference/김포공항_AIP.pdf`(공식 AIP — ATIS 파서 규격 근거). 지형/3D타일은 이 앱에 불필요.
+
 ### 프론트 관례
 - 파생값은 컴포넌트에서 계산하지 않고 `data/stats.ts`에 모은다 (디자인의 `renderVals()` 대응).
 - 차트는 인라인 SVG (viewBox 560×130, `linePts`/`areaPts` 헬퍼). 차트 라이브러리 없음.
-- 개발/스크린샷 편의: URL 해시로 초기 상태 지정 가능 — `#view=map&range=7d&raw=3`.
+- 개발/스크린샷 편의: URL 해시로 초기 상태 지정 가능 — `#view=map&range=7d&raw=3&aerial=1&zoom=15`.
 - 시각 확인은 `npm run dev` 후 Windows Chrome 헤드리스로 스크린샷:
   `chrome.exe --headless=new --window-size=1280,800 --screenshot=<path> http://127.0.0.1:1420/#view=map`
   (WSL curl로는 Windows vite에 접근 불가 — 브라우저도 Windows 쪽을 써야 함)

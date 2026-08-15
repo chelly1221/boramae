@@ -1,3 +1,4 @@
+import { RUNWAY_TRUE_HEADING } from './airport';
 import type { Approach, AtisRecord, HeatRow, ImportedFile, Range, Runway } from './types';
 
 /*
@@ -75,7 +76,7 @@ export function getRecords(range: Range, _refreshTick = 0): AtisRecord[] {
     const t = 22 + Math.round(rnd() * 4);
     const dp = vis < 10 ? t - 1 : t - 4 - Math.round(rnd() * 3);
     const rwy: Runway = dir > 250 || dir < 70 ? '32L/32R' : '14L/14R';
-    const hdg = rwy[0] === '3' ? 323 : 143;
+    const hdg = RUNWAY_TRUE_HEADING[rwy]; // 실제 진방위 (시안 목데이터의 323/143 대신)
     const rel = ((dir - hdg) * Math.PI) / 180;
     const d10 = (Math.round(dir / 10) * 10) % 360 || 360;
     const s = Math.round(spd);

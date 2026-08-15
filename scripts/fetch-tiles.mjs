@@ -13,7 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const cfg = JSON.parse(readFileSync(join(root, 'tiles.config.json'), 'utf8'));
+const cfg = JSON.parse(readFileSync(join(root, 'tiles.config.json'), 'utf8')).basemap;
 const force = process.argv.includes('--force');
 
 const { style, zoom: z, scale, bbox } = cfg;

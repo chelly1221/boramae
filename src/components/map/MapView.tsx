@@ -10,6 +10,9 @@ interface Props {
   mapIdx: number;
   playing: boolean;
   windViz: boolean;
+  aerial: boolean;
+  /** 개발/스크린샷용 초기 줌 */
+  initialZoom?: number;
   showVisCircle: boolean;
   onPick: (i: number) => void;
   onTogglePlay: () => void;
@@ -27,12 +30,12 @@ const WIND_LEGEND: [string, string][] = [
   ['#c8422e', '19KT+'],
 ];
 
-export function MapView({ recs, mapIdx, playing, windViz, showVisCircle, onPick, onTogglePlay }: Props) {
+export function MapView({ recs, mapIdx, playing, windViz, aerial, initialZoom, showVisCircle, onPick, onTogglePlay }: Props) {
   const mapEl = useRef<HTMLDivElement>(null);
   const mi = Math.min(mapIdx, recs.length - 1);
   const cur = recs[mi];
 
-  useLeafletMap(mapEl, { vis: cur.vis, visTxt: cur.visTxt, show: showVisCircle });
+  useLeafletMap(mapEl, { vis: cur.vis, visTxt: cur.visTxt, showVis: showVisCircle, activeRwy: cur.rwy, aerial }, initialZoom);
 
   const showArrows = recs.length <= ARROW_MAX_CELLS;
 

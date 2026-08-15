@@ -1,14 +1,25 @@
 {
-  "$comment": "오프라인 지도 타일 설정. scripts/fetch-tiles.mjs(다운로드)와 src/components/map/useLeafletMap.ts(표시)가 공유한다.",
-  "style": "voyager",
-  "zoom": 12,
-  "scale": 2,
-  "bbox": {
-    "$comment": "RKSS(37.5583, 126.7906) 기준 동서 ±0.5°, 남북 ±0.4° — 김포·인천·서울 권역",
-    "minLon": 126.29,
-    "minLat": 37.16,
-    "maxLon": 127.29,
-    "maxLat": 37.96
+  "$comment": "오프라인 지도 타일 설정. scripts/*.mjs(다운로드/복사)와 src/components/map/useLeafletMap.ts(표시)가 공유한다.",
+  "basemap": {
+    "$comment": "CARTO 래스터 베이스맵 — 한 줌만 bbox 범위로 다운로드 (npm run tiles)",
+    "style": "voyager",
+    "zoom": 12,
+    "scale": 2,
+    "bbox": {
+      "$comment": "RKSS(37.5583, 126.7906) 기준 동서 ±0.5°, 남북 ±0.4° — 김포·인천·서울 권역",
+      "minLon": 126.29,
+      "minLat": 37.16,
+      "maxLon": 127.29,
+      "maxLat": 37.96
+    },
+    "outDir": "public/tiles"
   },
-  "outDir": "public/tiles"
+  "aerial": {
+    "$comment": "2023 김포공항 항공사진 (BRA SUITE image_tiles_Gimpo_2023, Web Mercator XYZ jpg, z0–18). 원본에서 줌 부분집합만 복사 (npm run tiles:aerial). bbox는 z16 타일 범위.",
+    "source": "C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023",
+    "minZoom": 12,
+    "maxZoom": 16,
+    "bbox": { "minLon": 126.6229, "minLat": 37.4225, "maxLon": 126.958, "maxLat": 37.6882 },
+    "outDir": "public/tiles-aerial"
+  }
 }

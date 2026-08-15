@@ -17,16 +17,20 @@ const SHOW_VIS_CIRCLE = true;
 /** 타임라인 재생 간격 (ms) */
 const PLAY_INTERVAL = 350;
 
-/** 개발/스크린샷 편의: `#view=map&range=7d&raw=3` 형태의 해시로 초기 상태 지정 */
+/** 개발/스크린샷 편의: `#view=map&range=7d&raw=3&aerial=1` 형태의 해시로 초기 상태 지정 */
 function initialFromHash() {
   const p = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const view = p.get('view');
   const range = p.get('range');
   const raw = p.get('raw');
+  const aerial = p.get('aerial') === '1';
+  const zoom = p.get('zoom');
   return {
     view: (view === 'map' || view === 'import' ? view : 'stats') as View,
     range: (range === '7d' || range === '30d' ? range : '24h') as Range,
     rawIdx: raw != null && /^\d+$/.test(raw) ? Number(raw) : null,
+    aerial,
+    mapZoom: zoom != null && /^\d+$/.test(zoom) ? Number(zoom) : undefined,
   };
 }
 const INIT = initialFromHash();
@@ -37,6 +41,7 @@ export default function App() {
   const [mapIdx, setMapIdx] = useState(() => getRecords(INIT.range).length - 1);
   const [playing, setPlaying] = useState(false);
   const [windViz, setWindViz] = useState(true);
+  const [aerial, setAerial] = useState(INIT.aerial);
   const [rawIdx, setRawIdx] = useState<number | null>(INIT.rawIdx);
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -106,6 +111,8 @@ export default function App() {
           onRange={changeRange}
           windViz={windViz}
           onToggleWindViz={() => setWindViz((v) => !v)}
+          aerial={aerial}
+          onToggleAerial={() => setAerial((v) => !v)}
           onExportCsv={() => void exportCsv(recs, range)}
           onRefresh={() => setRefreshTick((t) => t + 1)}
         />
@@ -120,6 +127,8 @@ export default function App() {
               mapIdx={mapIdx}
               playing={playing}
               windViz={windViz}
+              aerial={aerial}
+              initialZoom={INIT.mapZoom}
               showVisCircle={SHOW_VIS_CIRCLE}
               onPick={pickMapIdx}
               onTogglePlay={togglePlay}

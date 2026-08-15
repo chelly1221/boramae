@@ -704,6 +704,11 @@ svg {
   white-space: nowrap;
   box-shadow: 0 1px 5px rgba(50, 35, 25, 0.15);
 }
+.vis-pill--sm {
+  font-size: 9px;
+  padding: 1px 6px;
+  transform: translate(0, -50%);
+}
 .map-cards {
   position: absolute;
   top: 14px;
