@@ -88,6 +88,38 @@ svg {
   overflow: hidden;
 }
 
+/* ===== Scrollbar: macOS 스타일 오버레이 (WebView2/Chromium) =====
+   트랙 없이 얇고 둥근 썸만. 평소엔 숨기고, 스크롤 영역에 마우스가 올라오면 나타남. */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  min-height: 36px;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(60, 40, 30, 0.28);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(60, 40, 30, 0.45) !important;
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(60, 40, 30, 0.55) !important;
+}
+
 .main {
   flex: 1;
   display: flex;
@@ -1151,3 +1183,363 @@ svg {
   font-size: 11px;
   color: var(--ink-muted-45);
 }
+
+/* ===== 통계 카드 → 상세 링크 ===== */
+.card--link {
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.card--link:hover {
+  border-color: rgba(127, 13, 0, 0.28);
+  box-shadow: 0 2px 10px rgba(50, 35, 25, 0.1);
+}
+.card--link:active {
+  transform: translateY(0.5px);
+}
+.card__go {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  background: rgba(127, 13, 0, 0.08);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.card--link:hover .card__go {
+  opacity: 1;
+}
+/* 카드 헤더 우측 범례가 화살표와 겹치지 않도록 여백 */
+.card--link .card__head {
+  padding-right: 22px;
+}
+.card--link .timeline__ev,
+.card--link .heat__cell,
+.card--link .upd-bars__bar {
+  cursor: pointer;
+}
+.toolbar__back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 6px;
+  margin-right: 4px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(127, 13, 0, 0.07);
+}
+.toolbar__back:hover {
+  background: rgba(127, 13, 0, 0.13);
+}
+.toolbar__back svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== Detail view (상세 페이지) ===== */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 24px;
+}
+.dgrid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.dgrid-2--wide {
+  grid-template-columns: 1.6fr 1fr;
+}
+.dgrid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.dsection {
+  gap: 12px;
+  min-width: 0;
+}
+.dsection .card__head {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.dsection__note {
+  font-size: 11.5px;
+  color: var(--ink-muted-5);
+  line-height: 1.5;
+}
+
+/* 기간 지정 */
+.period {
+  gap: 10px;
+  padding: 12px 16px;
+}
+.period__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.period__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted-55);
+  min-width: 52px;
+}
+.period__spacer {
+  flex: 1;
+}
+.period__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.period__span {
+  min-width: 64px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.icon-btn--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.period__dt {
+  display: inline-flex;
+  gap: 4px;
+}
+.period__sel {
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-12);
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-body);
+  cursor: pointer;
+  outline: none;
+}
+.period__sel:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.period__sel:focus {
+  border-color: rgba(127, 13, 0, 0.45);
+}
+.period__tilde {
+  color: var(--ink-muted-4);
+  font-weight: 700;
+  padding: 0 2px;
+}
+.period__meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-muted-55);
+}
+.period__meta b {
+  color: var(--ink-title);
+  font-weight: 700;
+}
+
+/* 요약 타일 */
+.dtiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.dtile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--surface-3);
+  border: 1px solid rgba(50, 30, 20, 0.06);
+  min-width: 0;
+}
+.dtile--accent {
+  background: rgba(127, 13, 0, 0.06);
+  border-color: rgba(127, 13, 0, 0.14);
+}
+.dtile__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted-5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dtile__value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-title);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.dtile--accent .dtile__value {
+  color: var(--primary);
+}
+.dtile__sub {
+  font-size: 11px;
+  color: var(--ink-muted-5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dempty {
+  padding: 26px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-muted-5);
+}
+
+/* 차트 컨테이너 + 툴팁 */
+.tchart,
+.bchart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.tchart svg,
+.bchart svg {
+  display: block;
+  font-family: var(--font-sans);
+}
+.tchart__tip {
+  position: absolute;
+  top: 8px;
+  z-index: 5;
+  min-width: 120px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(253, 252, 252, 0.97);
+  border: 1px solid var(--border-12);
+  box-shadow: 0 4px 16px rgba(50, 35, 25, 0.16);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  white-space: nowrap;
+}
+.tchart__tip-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-title);
+  font-family: var(--font-mono);
+  margin-bottom: 2px;
+}
+.tchart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+.tchart__tip-sw {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.tchart__tip-name {
+  color: var(--ink-muted-6);
+  flex: 1;
+}
+.tchart__tip-val {
+  font-weight: 700;
+  color: var(--ink-title);
+  font-family: var(--font-mono);
+}
+.tchart__tip-note {
+  font-size: 11px;
+  color: var(--ink-muted-5);
+  border-top: 1px solid var(--border-08);
+  padding-top: 3px;
+  margin-top: 2px;
+}
+
+/* 테이블 */
+.dtable-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dtable {
+  overflow: auto;
+  border: 1px solid var(--border-08);
+  border-radius: 8px;
+}
+.dtable table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+.dtable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-3);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-muted-55);
+  border-bottom: 1px solid var(--border-1);
+  white-space: nowrap;
+}
+.dtable td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(50, 30, 20, 0.05);
+  color: var(--ink-body);
+  white-space: nowrap;
+}
+.dtable tr:last-child td {
+  border-bottom: 0;
+}
+.dtable td.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.dtable__row--link {
+  cursor: pointer;
+}
+.dtable__row--link:hover td {
+  background: rgba(127, 13, 0, 0.05);
+}
+.dtable__more {
+  font-size: 11.5px;
+  color: var(--ink-muted-5);
+  text-align: center;
+}
+.dtable__more-btn {
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+.dtable__more-btn:hover {
+  text-decoration: underline;
+}
+
+/* 상세 안에서 카드 룩(히트맵 등) 재사용 시 클릭 커서 */
+.dsection .heat__cell,
+.dsection .tag {
+  cursor: pointer;
+}
+.dsection .legend {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* ===== Detail panels (패널별 추가 스타일) ===== */

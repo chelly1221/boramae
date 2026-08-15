@@ -1,4 +1,11 @@
-import type { Approach, AtisRecord, Range } from './types';
+import type { Approach, AtisRecord, HeatCell, HeatRow, Range } from './types';
+
+const HOUR_MS = 3600000;
+const DAY_MS = 24 * HOUR_MS;
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** "HHMMZ" — 좁은 라벨용 */
+export const hhmmZ = (r: AtisRecord) => r.time.slice(-5);
 
 /* ---------- 차트 헬퍼 (viewBox 560×130 기준) ---------- */
 
@@ -112,14 +119,15 @@ export interface Stats {
 
 const DIR_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const APP_COLORS: Record<Approach, string> = { ILS: '#7f0d00', RNP: '#b4451c', VOR: '#8c7a6e' };
-const TAG_DESC: Record<string, string> = { BR: '박무', HZ: '연무', RA: '비', TS: '뇌전', FG: '안개' };
-const INTERVAL_LABEL: Record<Range, string> = { '24h': '30분', '7d': '1시간', '30d': '3시간' };
-/** 갱신 빈도 "임시 갱신" 판정 기준 (기간이 길수록 시간당 누적치가 커지므로 보정) */
-const UPD_BASE_EXTRA: Record<Range, number> = { '24h': 0, '7d': 2, '30d': 4 };
+export const TAG_DESC: Record<string, string> = { BR: '박무', HZ: '연무', RA: '비', SN: '눈', TS: '뇌전', FG: '안개' };
+/** 갱신 빈도: 정기 발행은 시간당 2회(:00/:30) — 일평균이 이를 넘으면 임시 갱신 포함으로 판정 */
+const UPD_REGULAR_PER_HOUR = 2;
 
 export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number): Stats {
   const cur = recs[recs.length - 1];
   const n = recs.length;
+  const spanMs = Math.max(1, cur.ts - recs[0].ts);
+  const days = Math.max(1, spanMs / DAY_MS);
 
   // QNH
   const qnhs = recs.map((r) => r.qnh);
@@ -176,8 +184,8 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
   recs.forEach((r, i) => {
     if (i > 0 && r.rwy !== recs[i - 1].rwy)
       rwyEventsAll.push({
-        leftPct: (i / (n - 1)) * 100,
-        time: r.time,
+        leftPct: ((r.ts - recs[0].ts) / spanMs) * 100,
+        time: range === '24h' ? hhmmZ(r) : r.time,
         label: `${recs[i - 1].rwy.slice(0, 2)} → ${r.rwy.slice(0, 2)}`,
         wind: r.wind,
         index: i,
@@ -190,18 +198,16 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     evSpaced.push(e);
   });
 
-  // 갱신 빈도
-  const upd = Array.from({ length: 24 }, () => 2);
-  recs.forEach((r, i) => {
-    if (i > 0 && r.rwy !== recs[i - 1].rwy) upd[r.hour]++;
-    if (r.vis < 10) upd[r.hour]++;
-  });
+  // 갱신 빈도: UTC 시간대별 발행 건수의 일평균 (정기 2회/시 초과분 = 임시 갱신)
+  const updCnt = Array.from({ length: 24 }, () => 0);
+  recs.forEach((r) => updCnt[r.hour]++);
+  const upd = updCnt.map((c) => Math.round((c / days) * 10) / 10);
   const maxUpd = Math.max(...upd);
   const updBars: UpdBar[] = upd.map((count, hour) => ({
     hour,
     count,
-    heightPct: Math.round((count / maxUpd) * 100),
-    temp: count > 2 + UPD_BASE_EXTRA[range],
+    heightPct: Math.round((count / (maxUpd || 1)) * 100),
+    temp: count > UPD_REGULAR_PER_HOUR + 0.05,
   }));
 
   // 구름 / 접근
@@ -224,9 +230,9 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
 
   return {
     total: n,
-    firstTime: recs[0].time,
-    lastTime: cur.time,
-    interval: INTERVAL_LABEL[range],
+    firstTime: range === '24h' ? hhmmZ(recs[0]) : recs[0].time,
+    lastTime: range === '24h' ? hhmmZ(cur) : cur.time,
+    interval: n > 1 ? `${Math.round(spanMs / 60000 / (n - 1))}분` : '—',
     topRwy: p32 >= 50 ? '32L/32R' : '14L/14R',
     avgQnh: Math.round(qnhs.reduce((a, b) => a + b, 0) / n),
     tempPts: linePts(temps, 130, tMin, tMax),
@@ -246,7 +252,7 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     p14,
     rwyEvents: evSpaced.slice(-5),
     updBars,
-    maxUpd,
+    maxUpd: Math.round(maxUpd * 10) / 10,
     cavokPct: Math.round((cavok / n) * 100),
     minCeil: ceils.length ? Math.min(...ceils) : null,
     bknCount: ceils.length,
@@ -261,6 +267,55 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     qnhDelta: (qnhMaxV - qnhMinV).toFixed(1),
     tagChips,
   };
+}
+
+/* ---------- 기상 히트맵 (일 × 24시간, UTC) ---------- */
+
+const HEAT_COLOR = { fog: '#c8871c', rain: '#6b8cae', rwy: '#7f0d00' } as const;
+const HEAT_NAME = { fog: '시정 저하', rain: '강수', rwy: '활주로 전환' } as const;
+type HeatEv = keyof typeof HEAT_COLOR;
+
+/**
+ * 레코드에서 일 × 시간대 이벤트 히트맵 행을 만든다. [from, to] 창의 각 UTC 일이 한 행.
+ * 셀 이벤트: 시정 저하(vis<10, 강수 제외) / 강수(RA·SN 태그) / 활주로 전환(직전 레코드와 다름).
+ * 복합은 50/50 그라데이션. `index`는 셀 시간대의 첫 레코드 인덱스(원문 열기용).
+ */
+export function computeHeatRows(recs: AtisRecord[], from: number, to: number): HeatRow[] {
+  const dayStart = Math.floor(from / DAY_MS) * DAY_MS;
+  const rows: HeatRow[] = [];
+  const cellMap = new Map<number, { ev: Set<HeatEv>; index: number }>();
+  recs.forEach((r, i) => {
+    const key = Math.floor(r.ts / HOUR_MS) * HOUR_MS;
+    let c = cellMap.get(key);
+    if (!c) {
+      c = { ev: new Set(), index: i };
+      cellMap.set(key, c);
+    }
+    const rain = r.tags.includes('RA') || r.tags.includes('SN');
+    if (rain) c.ev.add('rain');
+    else if (r.vis < 10) c.ev.add('fog');
+    if (i > 0 && r.rwy !== recs[i - 1].rwy) c.ev.add('rwy');
+  });
+  for (let d = dayStart; d <= to; d += DAY_MS) {
+    const dt = new Date(d);
+    const day = `${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+    const cells: HeatCell[] = [];
+    for (let h = 0; h < 24; h++) {
+      const ts = d + h * HOUR_MS;
+      const c = cellMap.get(ts);
+      const label = `${day} ${pad2(h)}시 · `;
+      const inWin = ts + HOUR_MS > from && ts <= to;
+      if (!c || !c.ev.size) {
+        cells.push({ bg: inWin ? 'rgba(50,30,20,0.05)' : 'rgba(50,30,20,0.02)', title: label + (inWin ? '정상' : '기간 외'), ts, index: c?.index ?? null });
+        continue;
+      }
+      const ev = (['fog', 'rain', 'rwy'] as HeatEv[]).filter((e) => c.ev.has(e));
+      const bg = ev.length === 1 ? HEAT_COLOR[ev[0]] : `linear-gradient(90deg, ${HEAT_COLOR[ev[0]]} 0 50%, ${HEAT_COLOR[ev[1]]} 50% 100%)`;
+      cells.push({ bg, title: label + ev.map((e) => HEAT_NAME[e]).join(' + '), ts, index: c.index });
+    }
+    rows.push({ day, dayTs: d, cells });
+  }
+  return rows;
 }
 
 /** 풍속(KT) → 스크러버/파티클 색 */

@@ -1,12 +1,19 @@
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { areaPts, type Stats } from '../data/stats';
-import type { HeatRow } from '../data/types';
+import type { DetailKey, HeatRow } from '../data/types';
+import { IconChevronRight } from './icons';
 
 interface Props {
   stats: Stats;
   heatRows: HeatRow[];
   xwLimit: number;
+  /** 현재 기간 레코드 인덱스의 원문 열기 */
   onOpenRaw: (index: number) => void;
+  /** 히트맵(최근 7일) 레코드 인덱스의 원문 열기 */
+  onOpenHeatRaw: (index: number) => void;
   onOpenRawAtHour: (hour: number) => void;
+  /** 카드 클릭 → 상세 페이지 */
+  onOpenDetail: (key: DetailKey) => void;
 }
 
 const HOUR_AXIS = ['00시', '06시', '12시', '18시', '23시'];
@@ -22,12 +29,36 @@ function Stat({ label, value, color, lg }: { label: string; value: string; color
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+/** 상세 페이지로 이동하는 카드 — 우상단 화살표 + hover 강조. 내부 클릭 요소는 stopPropagation. */
+function LinkCard({
+  detail,
+  onOpen,
+  children,
+  className,
+  style,
+}: {
+  detail: DetailKey;
+  onOpen: (k: DetailKey) => void;
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) {
   return (
-    <div className="card kpi">
+    <div className={`card card--link${className ? ' ' + className : ''}`} style={style} onClick={() => onOpen(detail)} title="클릭하여 상세 보기">
+      {children}
+      <span className="card__go">
+        <IconChevronRight />
+      </span>
+    </div>
+  );
+}
+
+function Kpi({ label, value, detail, onOpen }: { label: string; value: string; detail: DetailKey; onOpen: (k: DetailKey) => void }) {
+  return (
+    <LinkCard detail={detail} onOpen={onOpen} className="kpi">
       <span className="kpi__label">{label}</span>
       <span className="kpi__value">{value}</span>
-    </div>
+    </LinkCard>
   );
 }
 
@@ -43,20 +74,22 @@ const GridLines = ({ mid = true }: { mid?: boolean }) => (
   </>
 );
 
-export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtHour }: Props) {
+const stop = (e: MouseEvent) => e.stopPropagation();
+
+export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRaw, onOpenRawAtHour, onOpenDetail }: Props) {
   return (
     <div className="stats">
       {/* KPI */}
       <div className="grid-4">
-        <Kpi label="총 수신 전문" value={`${s.total}건`} />
-        <Kpi label="평균 발행 간격" value={s.interval} />
-        <Kpi label="최다 사용 활주로" value={s.topRwy} />
-        <Kpi label="평균 QNH" value={`${s.avgQnh} hPa`} />
+        <Kpi label="총 수신 전문" value={`${s.total.toLocaleString()}건`} detail="update" onOpen={onOpenDetail} />
+        <Kpi label="평균 발행 간격" value={s.interval} detail="update" onOpen={onOpenDetail} />
+        <Kpi label="최다 사용 활주로" value={s.topRwy} detail="runway" onOpen={onOpenDetail} />
+        <Kpi label="평균 QNH" value={`${s.avgQnh} hPa`} detail="qnh" onOpen={onOpenDetail} />
       </div>
 
       <div className="grid-2">
         {/* 온도/노점 */}
-        <div className="card">
+        <LinkCard detail="temp" onOpen={onOpenDetail}>
           <div className="card__head">
             <span className="card__title">온도 / 노점 추이 · 스프레드</span>
             <span className="legend">
@@ -78,10 +111,10 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
             <Stat label="최소 스프레드" value={`${s.spreadMin}°C`} />
             {s.fogRisk && <span className="badge-amber">안개 위험 구간 감지</span>}
           </div>
-        </div>
+        </LinkCard>
 
         {/* 바람 장미 */}
-        <div className="card" style={{ gap: 6 }}>
+        <LinkCard detail="wind" onOpen={onOpenDetail} style={{ gap: 6 }}>
           <span className="card__title">바람</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <svg width="176" height="176" viewBox="0 0 200 200" style={{ flexShrink: 0 }}>
@@ -121,12 +154,12 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
               </span>
             </div>
           </div>
-        </div>
+        </LinkCard>
       </div>
 
       <div className="grid-2">
         {/* 측풍/배풍 */}
-        <div className="card">
+        <LinkCard detail="xwind" onOpen={onOpenDetail}>
           <div className="card__head">
             <span className="card__title">
               측풍 / 배풍 성분 <small>· 사용 활주로 기준</small>
@@ -151,11 +184,11 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
             <Stat label="한계 초과" value={`${s.xwExceed}건`} color={s.xwExceed > 0 ? '#b4451c' : undefined} />
             <Stat label="최대 배풍" value={`${s.maxTw}KT`} />
           </div>
-        </div>
+        </LinkCard>
 
         {/* 활주로: 비율 + 전환 타임라인 */}
         <div className="rwy-col">
-          <div className="card">
+          <LinkCard detail="runway" onOpen={onOpenDetail}>
             <span className="card__title">활주로 사용 비율</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="hbar">
@@ -173,13 +206,21 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
                 <span className="hbar__pct">{s.p14}%</span>
               </div>
             </div>
-          </div>
-          <div className="card">
+          </LinkCard>
+          <LinkCard detail="runway" onOpen={onOpenDetail}>
             <span className="card__title">활주로 전환 이벤트</span>
             <div className="timeline">
               <div className="timeline__track" />
               {s.rwyEvents.map((e) => (
-                <div key={e.index} className="timeline__ev" style={{ left: `${e.leftPct.toFixed(1)}%` }} onClick={() => onOpenRaw(e.index)}>
+                <div
+                  key={e.index}
+                  className="timeline__ev"
+                  style={{ left: `${e.leftPct.toFixed(1)}%` }}
+                  onClick={(ev) => {
+                    stop(ev);
+                    onOpenRaw(e.index);
+                  }}
+                >
                   <span className="timeline__time">{e.time}</span>
                   <div className="timeline__dot" />
                   <span className="timeline__label">{e.label}</span>
@@ -191,12 +232,12 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
               <span>{s.firstTime}</span>
               <span>{s.lastTime}</span>
             </div>
-          </div>
+          </LinkCard>
         </div>
       </div>
 
       {/* 히트맵 */}
-      <div className="card">
+      <LinkCard detail="heat" onOpen={onOpenDetail}>
         <div className="card__head" style={{ gap: 14 }}>
           <span className="card__title">
             시간대별 기상 히트맵 <small>· 최근 7일 × 24시간 (UTC)</small>
@@ -216,10 +257,20 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
         </div>
         <div className="heat">
           {heatRows.map((row) => (
-            <div key={row.day} className="heat__row">
+            <div key={row.dayTs} className="heat__row">
               <span className="heat__day">{row.day}</span>
-              {row.cells.map((c, h) => (
-                <div key={h} className="heat__cell" title={c.title} style={{ background: c.bg }} onClick={() => onOpenRawAtHour(h)} />
+              {row.cells.map((c) => (
+                <div
+                  key={c.ts}
+                  className="heat__cell"
+                  title={c.title}
+                  style={{ background: c.bg }}
+                  onClick={(ev) => {
+                    if (c.index == null) return;
+                    stop(ev);
+                    onOpenHeatRaw(c.index);
+                  }}
+                />
               ))}
             </div>
           ))}
@@ -233,14 +284,14 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
           </div>
         </div>
         <span className="card__note">03–06시 구간에 시정 저하가 반복 — 새벽 안개 패턴</span>
-      </div>
+      </LinkCard>
 
       <div className="grid-2">
         {/* 갱신 빈도 */}
-        <div className="card">
+        <LinkCard detail="update" onOpen={onOpenDetail}>
           <div className="card__head" style={{ gap: 0 }}>
             <span className="card__title">
-              정보문자 갱신 빈도 <small>· 시간당 발행 횟수</small>
+              정보문자 갱신 빈도 <small>· 시간당 발행 횟수 (일평균)</small>
             </span>
             <span style={{ fontSize: 11, color: 'var(--ink-muted-55)' }}>
               최다 {s.maxUpd}회/시 · <span style={{ color: '#b4451c', fontWeight: 700 }}>■</span> 임시 갱신 포함
@@ -253,7 +304,10 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
                 className="upd-bars__bar"
                 title={`${String(u.hour).padStart(2, '0')}시 · ${u.count}회`}
                 style={{ height: `${u.heightPct}%`, background: u.temp ? '#b4451c' : 'rgba(127,13,0,0.4)' }}
-                onClick={() => onOpenRawAtHour(u.hour)}
+                onClick={(ev) => {
+                  stop(ev);
+                  onOpenRawAtHour(u.hour);
+                }}
               />
             ))}
           </div>
@@ -262,10 +316,10 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
               <span key={t}>{t}</span>
             ))}
           </div>
-        </div>
+        </LinkCard>
 
         {/* 구름 / 접근방식 */}
-        <div className="card" style={{ gap: 12 }}>
+        <LinkCard detail="cloud" onOpen={onOpenDetail} style={{ gap: 12 }}>
           <span className="card__title">구름 / 접근방식</span>
           <div style={{ display: 'flex', gap: 20 }}>
             <Stat label="CAVOK 비율" value={`${s.cavokPct}%`} />
@@ -283,12 +337,12 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
               </div>
             ))}
           </div>
-        </div>
+        </LinkCard>
       </div>
 
       <div className="grid-2">
         {/* QNH */}
-        <div className="card">
+        <LinkCard detail="qnh" onOpen={onOpenDetail}>
           <div className="card__head">
             <span className="card__title">
               QNH 추이 <small>· hPa</small>
@@ -309,34 +363,38 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenRawAtH
             <Stat label="최저" value={String(s.qnhMin)} />
             <Stat label="변화 폭" value={`${s.qnhDelta} hPa`} />
           </div>
-        </div>
+        </LinkCard>
 
         {/* 시정 / 특이기상 */}
-        <div className="card">
+        <LinkCard detail="vis" onOpen={onOpenDetail}>
           <span className="card__title">시정 / 특이기상</span>
           <div style={{ display: 'flex', gap: 20 }}>
             <Stat lg label="시정 저하" value={`${s.lowVisCount}건`} />
-            <Stat lg label="최저 시정" value={`${s.minVis}KM`} />
+            <Stat lg label="최저 시정" value={s.minVis >= 1 ? `${s.minVis}KM` : `${Math.round(s.minVis * 1000)}M`} />
             <Stat lg label="TS/CB 보고" value={`${s.tsCount}건`} color="#b8770a" />
           </div>
-        </div>
+        </LinkCard>
       </div>
 
       {/* 기상 태그 */}
-      <div className="card">
+      <LinkCard detail="tags" onOpen={onOpenDetail}>
         <span className="card__title">
           기상현상 태그 빈도 <small>· 전문 remarks 토큰</small>
         </span>
         <div className="tags">
-          {s.tagChips.map((tg) => (
-            <div key={tg.tag} className="tag">
-              <span className="tag__code">{tg.tag}</span>
-              <span className="tag__desc">{tg.desc}</span>
-              <span className="tag__n">{tg.n}</span>
-            </div>
-          ))}
+          {s.tagChips.length ? (
+            s.tagChips.map((tg) => (
+              <div key={tg.tag} className="tag">
+                <span className="tag__code">{tg.tag}</span>
+                <span className="tag__desc">{tg.desc}</span>
+                <span className="tag__n">{tg.n}</span>
+              </div>
+            ))
+          ) : (
+            <span className="card__note">기간 내 특이기상 태그 없음</span>
+          )}
         </div>
-      </div>
+      </LinkCard>
     </div>
   );
 }

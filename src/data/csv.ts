@@ -21,8 +21,8 @@ export function toCsv(recs: AtisRecord[]): string {
  * - Tauri: 저장 다이얼로그 → Rust `save_text_file` 커맨드
  * - 브라우저(vite dev): Blob 다운로드
  */
-export async function exportCsv(recs: AtisRecord[], range: Range): Promise<void> {
-  const filename = `rkss_atis_${range}.csv`;
+export async function exportCsv(recs: AtisRecord[], suffix: Range | string): Promise<void> {
+  const filename = `rkss_atis_${suffix}.csv`;
   const contents = toCsv(recs);
 
   if (isTauri()) {

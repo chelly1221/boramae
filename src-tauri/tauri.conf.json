@@ -17,6 +17,7 @@
         "minWidth": 1024,
         "height": 800,
         "minHeight": 680,
+        "maximized": true,
         "decorations": false
       }
     ],

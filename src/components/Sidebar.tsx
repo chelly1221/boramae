@@ -51,7 +51,7 @@ export function Sidebar({ view, onChange, lastTime, total }: Props) {
       <div className="sidebar__status">
         <span>폴더 감시 · 정상</span>
         <span>
-          최종 수신 {lastTime} · {total}건
+          최종 수신 {lastTime.slice(-5)} · {total.toLocaleString()}건
         </span>
       </div>
     </aside>
