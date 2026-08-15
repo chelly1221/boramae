@@ -672,8 +672,9 @@ svg {
   position: absolute;
   inset: 0;
 }
-.mapview__map .leaflet-tile {
-  filter: saturate(0.7) contrast(0.97);
+.mapview__map.leaflet-container {
+  /* 타일 범위 밖(bbox 외곽) 배경 — CARTO Voyager 육지색과 맞춤 */
+  background: #f2efe9;
 }
 .mapview__map .leaflet-tooltip {
   font-size: 12px;

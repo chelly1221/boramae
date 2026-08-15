@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Tauri v2** (`src-tauri/`, crate `boramae`, lib `boramae_lib`) — Rust 백엔드. 현재 커맨드: `save_text_file(path, contents)`.
   예정: 폴더 감시(`notify` crate) → ATIS 파싱 → 로컬 DB → 프론트로 이벤트 push
 - **React 19 + TypeScript + Vite 7** (`src/`) — 프론트엔드. 스타일은 `src/styles.css` 단일 파일(BEM식 클래스 + CSS 변수 토큰), CSS-in-JS/UI 라이브러리 없음
-- 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`), OSM 타일
+- 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 베이스맵은 **오프라인 CARTO 타일** — `tiles.config.json`(스타일/줌/bbox) 기준으로 `npm run tiles`가 `public/tiles/{z}/{x}/{y}.png`에 한 줌만 내려받고, Leaflet은 그 줌을 native로, 나머지는 스케일링. 런타임 네트워크 요청 없음
 - CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
 - 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680)
 
@@ -26,6 +26,7 @@ Windows 툴체인 기준 (아래 Environment 참고). WSL 셸에서 `npm`은 Win
 - `npm install` — 의존성 설치
 - `npm run dev` — Vite 프론트만 (http://localhost:1420)
 - `npm run build` — `tsc && vite build` (타입체크 포함, 프론트 검증용)
+- `npm run tiles` — CARTO 베이스맵 타일 다운로드 (`tiles.config.json` 참조, `--force`로 재다운로드). 타일은 git에 커밋되어 있어 평소엔 불필요
 - `npm run tauri dev` — 앱 개발 실행 (Windows 터미널에서 권장)
 - `npm run tauri build` — 배포 빌드
 - Rust만 검증: `cd src-tauri && cargo check` (WSL에서는 `/mnt/c/Users/레이더송신소/.cargo/bin/cargo.exe check`)
@@ -73,6 +74,9 @@ src/
     map/MapView.tsx            지도 뷰 (플로팅 카드 + 타임 스크러버)
     map/useLeafletMap.ts       Leaflet 마운트 + 정적 레이어(활주로/경로/조류 섹터/충돌 보고) + 시정 원 갱신
     map/WindCanvas.tsx         바람 파티클 캔버스 (rAF)
+public/tiles/                  오프라인 베이스맵 타일 (생성물, `npm run tiles`) + manifest.json
+scripts/fetch-tiles.mjs        타일 다운로더 (Node, fetch)
+tiles.config.json              타일 스타일·줌·bbox 설정 (스크립트와 앱이 공유)
 src-tauri/
   src/main.rs                  진입점 → boramae_lib::run()
   src/lib.rs                   Tauri builder, 플러그인(dialog), 커맨드 등록

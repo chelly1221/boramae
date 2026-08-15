@@ -1,6 +1,21 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, type RefObject } from 'react';
+import tilesConfig from '../../../tiles.config.json';
+
+/**
+ * 오프라인 베이스맵: CARTO 래스터 타일을 `tiles.config.json`의 줌 한 단계만 bbox 범위로 미리 받아
+ * `public/tiles/{z}/{x}/{y}.png`에 둔다 (`npm run tiles`). Leaflet은 그 줌을 native로 쓰고
+ * 나머지 줌은 타일을 확대/축소해서 보여준다. 네트워크 요청 없음.
+ */
+const TILE_ZOOM = tilesConfig.zoom;
+const TILE_BOUNDS = L.latLngBounds(
+  [tilesConfig.bbox.minLat, tilesConfig.bbox.minLon],
+  [tilesConfig.bbox.maxLat, tilesConfig.bbox.maxLon],
+);
+/** 스케일링으로 허용할 줌 범위 (native ±) */
+const ZOOM_OUT_STEPS = 1;
+const ZOOM_IN_STEPS = 2;
 
 /** 공항 기준점 (ARP) */
 export const ARP: L.LatLngTuple = [37.5583, 126.7906];
@@ -60,9 +75,25 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, visSt
     const el = container.current;
     if (!el) return;
 
-    const map = L.map(el, { zoomControl: false, attributionControl: true }).setView([37.576, 126.786], 12);
+    const map = L.map(el, {
+      zoomControl: false,
+      attributionControl: true,
+      minZoom: TILE_ZOOM - ZOOM_OUT_STEPS,
+      maxZoom: TILE_ZOOM + ZOOM_IN_STEPS,
+      maxBounds: TILE_BOUNDS.pad(0.15),
+      maxBoundsViscosity: 0.8,
+    }).setView([37.576, 126.786], TILE_ZOOM);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('/tiles/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors © CARTO',
+      // 받아둔 줌 하나만 native — 다른 줌은 이 타일을 스케일링
+      minNativeZoom: TILE_ZOOM,
+      maxNativeZoom: TILE_ZOOM,
+      bounds: TILE_BOUNDS,
+      // @2x 타일(512px)을 256px로 표시 → HiDPI에서 선명
+      tileSize: 256,
+      detectRetina: false,
+    }).addTo(map);
 
     // RKSS 활주로 2본 (진방위 ≈ 134.6°)
     L.polyline(

@@ -1,0 +1,14 @@
+{
+  "$comment": "오프라인 지도 타일 설정. scripts/fetch-tiles.mjs(다운로드)와 src/components/map/useLeafletMap.ts(표시)가 공유한다.",
+  "style": "voyager",
+  "zoom": 12,
+  "scale": 2,
+  "bbox": {
+    "$comment": "RKSS(37.5583, 126.7906) 기준 동서 ±0.5°, 남북 ±0.4° — 김포·인천·서울 권역",
+    "minLon": 126.29,
+    "minLat": 37.16,
+    "maxLon": 127.29,
+    "maxLat": 37.96
+  },
+  "outDir": "public/tiles"
+}

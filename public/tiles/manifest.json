@@ -1,0 +1,25 @@
+{
+  "style": "voyager",
+  "zoom": 12,
+  "scale": 2,
+  "bbox": {
+    "$comment": "RKSS(37.5583, 126.7906) 기준 동서 ±0.5°, 남북 ±0.4° — 김포·인천·서울 권역",
+    "minLon": 126.29,
+    "minLat": 37.16,
+    "maxLon": 127.29,
+    "maxLat": 37.96
+  },
+  "tiles": {
+    "x": [
+      3484,
+      3496
+    ],
+    "y": [
+      1580,
+      1592
+    ],
+    "count": 169
+  },
+  "fetchedAt": "2026-08-15T05:39:37.358Z",
+  "attribution": "© OpenStreetMap contributors © CARTO"
+}
