@@ -53,7 +53,7 @@ Windows 툴체인 기준 (아래 Environment 참고). WSL 셸에서 `npm`은 Win
 - `design/support.js` — 프로토타입 런타임. 참조 불필요.
 - `design/assets/boramae-e3905caf.png` — KAC 보라매 로고.
 
-High-fidelity: 색·타이포·간격은 최종 의도값. Primary `#7f0d00`, 카드 radius 12px, 사이드바 208px.
+High-fidelity: 색·타이포·간격은 최종 의도값. Primary `#7f0d00`, 카드 radius 12px, 사이드바 208px (아이콘 22px·폰트 15px대로 확대 구현).
 
 ### 화면
 - 사이드바(공항 목록 + 통계 분석/지도/설정 내비 + 폴더 감시 상태)
