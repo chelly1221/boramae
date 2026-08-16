@@ -88,12 +88,25 @@ function pickDir(u: number): Dir8 {
 const DIR8_ORDER: Dir8[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 /**
+ * 디자인 데모: MOCK_NOW 당일(08-15)은 디자인 시안과 같은 조류 보고 3건을 종일 유지한다.
+ * 지도 뷰 기본 화면(마지막 전문)에 조류 섹터·BIRD ACTIVITY 카드가 채워지도록 하기 위한 고정값 — 백엔드 연결 시 제거.
+ */
+const DEMO_DAY_KEY = Math.floor(MOCK_NOW / DAY);
+const DEMO_BIRDS: BirdReport[] = [
+  { kind: 'HVY', dir: 'NW', nm: 5 },
+  { kind: 'LGT', dir: 'NE', nm: 3 },
+  { kind: 'LGT', dir: 'SE', nm: 2 },
+];
+
+/**
  * 조류 활동 보고 (일 단위 시드).
  * 활동일 확률: 기본 12% + 철새 이동기(4월 초·10월 말 피크) 최대 +55% + 겨울(한강 도래) 최대 +30%.
  * 활동일이면 새벽(20.5–22Z 시작, 1–2h)과 저녁(7.5–9.5Z 시작, 1.5–3h, 60%)에 보고가 붙고, 겨울엔 종일 보고하는 날(30%)도 있다.
  * 보고 내용은 그날의 대표 무리(방위·거리·규모) + 30% 확률의 두 번째 작은 무리(새벽/저녁만).
+ * 데모 당일(DEMO_DAY_KEY)은 위 규칙 대신 DEMO_BIRDS 3건을 종일 보고한다.
  */
 function birdsAt(doy: number, hUTC: number, dayKey: number, season: number): BirdReport[] {
+  if (dayKey === DEMO_DAY_KEY) return DEMO_BIRDS;
   const mig = Math.exp(-(((doy - 95) / 22) ** 2)) + Math.exp(-(((doy - 300) / 25) ** 2));
   const pDay = Math.min(0.85, 0.12 + 0.55 * mig + 0.3 * Math.max(0, season));
   if (h01(dayKey, 61) >= pDay) return [];
