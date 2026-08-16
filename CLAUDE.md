@@ -56,7 +56,7 @@ Windows 툴체인 기준 (아래 Environment 참고). WSL 셸에서 `npm`은 Win
 High-fidelity: 색·타이포·간격은 최종 의도값. Primary `#7f0d00`, 카드 radius 12px, 사이드바 208px (아이콘 22px·폰트 15px대로 확대 구현).
 
 ### 화면
-- 사이드바(공항 목록 + 통계 분석/지도/설정 내비 + 폴더 감시 상태)
+- 사이드바(공항 목록 + 통계 분석/지도/설정 내비 + 폴더 감시 상태). `통계 분석` 아래에 상세 페이지 10종이 중첩 메뉴(`.nav__sub`, `PANEL_KEYS` 순서)로 펼쳐짐 — stats 뷰일 때만 표시, 클릭 → `openDetail(key)`. 상세가 열려 있으면 하위 항목이 선택 강조(primary), 부모는 `.nav__item--open` 은은한 톤
 - 상단 툴바(기간 24h/7d/30d 세그먼트, CSV 내보내기, 새로고침, 지도 뷰에서 바람 시각화 토글). 상세 페이지에서는 `‹ 통계 분석` 뒤로가기 + 패널 제목/부제, 기간 세그먼트 숨김(기간은 상세 페이지 안에서 지정), CSV는 상세 기간 레코드 내보냄
 - 통계 분석 뷰: KPI 4장 + 카드 12종 (온도/노점, 바람장미, 측풍/배풍, 활주로 비율, 전환 이벤트, 히트맵, 갱신 빈도, 구름/접근, QNH, 시정, 기상 태그). **모든 카드는 `.card--link`로 클릭 → 상세 페이지** (KPI: 총 수신/발행 간격→update, 최다 활주로→runway, 평균 QNH→qnh). 카드 안의 클릭 요소(타임라인 도트·히트맵 셀·갱신 막대)는 stopPropagation
 - 상세 페이지(`DetailView`, 디자인 시안에는 없음 — 자체 설계): 상단 `PeriodPicker`(프리셋 24시간/7일/30일/90일/이번 달/지난 달/올해 + 시작·종료 년/월/일/시 셀렉트 + ◀▶ 기간 이동, UTC) → 항목별 패널(`components/detail/panels/<Key>Panel.tsx`, 레지스트리 `panels/index.ts`의 `PANELS`). 패널 구성 관례: `StatTiles`(요약) → 메인 `TimeSeriesChart`(자동 해상도 raw/1시간/1일, 점 클릭 → 원문) → `.dgrid-2` 보조 차트(일별 집계·UTC 시간대 프로파일) → 이벤트 `DetailTable`(행 클릭 → 원문) → `.dsection__note`. ESC → 통계로 복귀

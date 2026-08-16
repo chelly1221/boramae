@@ -199,7 +199,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar view={view} onChange={changeView} lastTime={stats.lastTime} total={stats.total} />
+      <Sidebar view={view} detail={showDetail ? detail : null} onChange={changeView} onOpenDetail={openDetail} lastTime={stats.lastTime} total={stats.total} />
 
       <div className="main">
         <Toolbar

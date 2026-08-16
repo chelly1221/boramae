@@ -262,6 +262,12 @@ svg {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* 하위 메뉴가 길어져도 하단 상태 영역을 밀어내지 않도록 내부 스크롤 */
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  margin: 0 -4px;
+  padding: 0 4px;
 }
 .nav__item {
   display: flex;
@@ -288,6 +294,53 @@ svg {
   background: var(--primary);
   color: #fff;
   --nav-icon: rgba(255, 255, 255, 0.85);
+}
+/* 하위 항목이 선택된 부모(통계 분석): 은은한 열림 톤 */
+.nav__item--open {
+  color: var(--ink-title);
+  font-weight: 600;
+  background: rgba(127, 13, 0, 0.06);
+  --nav-icon: var(--primary);
+}
+/* 통계 분석 하위 메뉴 (상세 페이지 목록) — 부모 아이콘 중심에 가이드 라인 */
+.nav__sub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 3px;
+  padding-left: 34px;
+}
+.nav__sub::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 4px;
+  bottom: 4px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: var(--border-14);
+}
+.nav__subitem {
+  padding: 4px 10px 4px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--ink-muted-6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav__subitem:hover {
+  background: rgba(50, 30, 20, 0.06);
+  color: var(--ink-body);
+}
+.nav__subitem--active,
+.nav__subitem--active:hover {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
 }
 .sidebar__spacer {
   flex: 1;
