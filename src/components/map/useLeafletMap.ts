@@ -228,18 +228,16 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
 
     const map = L.map(el, {
       zoomControl: false,
-      attributionControl: true,
+      attributionControl: false,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM_BASE,
       maxBounds: BASE_BOUNDS.pad(0.15),
       maxBoundsViscosity: 0.8,
     }).setView([37.576, 126.786], BASE.zoom);
     if (initialZoomRef.current != null) map.setView(ARP, initialZoomRef.current);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // 베이스맵 — 받아둔 줌 하나만 native, 다른 줌은 스케일링. @2x(512px) 타일을 256px로 표시 → HiDPI 선명
     L.tileLayer('/tiles/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors © CARTO',
       minNativeZoom: BASE.zoom,
       maxNativeZoom: BASE.zoom,
       bounds: BASE_BOUNDS,
@@ -249,7 +247,6 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
 
     // 항공사진 오버레이 (기본 ON, 토글) — 범위 밖/누락 타일은 투명
     const aerial = L.tileLayer('/tiles-aerial/{z}/{x}/{y}.webp', {
-      attribution: '항공사진 © 한국공항공사 (2023)',
       minNativeZoom: AERIAL.minZoom,
       maxNativeZoom: AERIAL.maxZoom,
       bounds: AERIAL_BOUNDS,

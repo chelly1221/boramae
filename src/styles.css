@@ -841,10 +841,6 @@ svg {
   font-size: 12px;
   font-weight: 600;
 }
-/* 줌 컨트롤·저작권 표기를 하단 스크러버(≈84px) 위로 올림 */
-.mapview__map .leaflet-bottom {
-  bottom: 84px;
-}
 .mapview__wind {
   position: absolute;
   inset: 0;
