@@ -15,7 +15,7 @@
     "outDir": "public/tiles"
   },
   "aerial": {
-    "$comment": "2023 김포공항 항공사진 (BRA SUITE image_tiles_Gimpo_2023, Web Mercator XYZ jpg, z0–18). 원본에서 줌 부분집합만 복사 (npm run tiles:aerial). bbox는 z16 타일 범위.",
+    "$comment": "2023 김포공항 항공사진 (BRA SUITE image_tiles_Gimpo_2023, Web Mercator XYZ jpg, z0–18). 원본에서 줌 부분집합만 가공(검정/흰 여백 투명화, WebP)해 넣음 (npm run tiles:aerial). bbox는 z16 타일 범위.",
     "source": "C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023",
     "minZoom": 12,
     "maxZoom": 16,

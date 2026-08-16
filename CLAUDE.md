@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **오프라인 원칙**: 폰트·타일·Leaflet CSS 등 모든 리소스는 빌드에 포함, 런타임 네트워크 요청 없음 (CDN/웹폰트 링크 금지)
 - 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 타일은 전부 오프라인(빌드 포함), 런타임 네트워크 요청 없음:
   - 베이스맵: CARTO Voyager, `tiles.config.json.basemap` 기준 줌 12 한 단계만 (`npm run tiles` → `public/tiles/`)
-  - 항공사진 오버레이(토글): 2023 김포공항 항공사진 z12–16, `tiles.config.json.aerial` 기준 원본(`C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023`)에서 복사 (`npm run tiles:aerial` → `public/tiles-aerial/`, ~59MB)
+  - 항공사진 오버레이(토글): 2023 김포공항 항공사진 z12–16, `tiles.config.json.aerial` 기준 원본(`C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023`)에서 가공 (`npm run tiles:aerial` → `public/tiles-aerial/`, WebP ~51MB). 원본 jpg에는 촬영 범위(공항 중심 원 + 활주로 방향 띠) 밖이 검정/흰색으로 구워져 있어, 스크립트가 z14 마스크(구멍 채움 → 침식/팽창으로 핵심/경계띠/바깥 3구역)로 여백을 투명 처리하고 전부 여백인 타일은 버린다 (`scripts/build-aerial-tiles.mjs`, devDependency `sharp`)
 - 공항 정밀 좌표: `src/data/airport.ts` (RKSS ARP, 활주로 시단 4점, LOC/GP/VOR 위치·주파수·코스 — BRA SUITE config_BRA.js 출처). 활주로 진방위 135/315는 측풍 계산에도 사용
 - CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
 - 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680), **`maximized: true`로 최대화 상태 시작**, **`decorations: false`** — OS 타이틀바 없이 macOS 스타일 커스텀 타이틀바 사용:
@@ -36,7 +36,7 @@ Windows 툴체인 기준 (아래 Environment 참고). WSL 셸에서 `npm`은 Win
 - `npm run dev` — Vite 프론트만 (http://localhost:1420)
 - `npm run build` — `tsc && vite build` (타입체크 포함, 프론트 검증용)
 - `npm run tiles` — CARTO 베이스맵 타일 다운로드 (`tiles.config.json.basemap`, `--force`로 재다운로드). 커밋되어 있어 평소엔 불필요
-- `npm run tiles:aerial` — 항공사진 타일 복사 (`tiles.config.json.aerial.source` → `public/tiles-aerial/`). 원본 없으면 건너뜀
+- `npm run tiles:aerial` — 항공사진 타일 가공(여백 투명화 + WebP 변환, `tiles.config.json.aerial.source` → `public/tiles-aerial/`, 약 45초). 원본 없으면 건너뜀. 커밋되어 있어 평소엔 불필요
 - `npm run tauri dev` — 앱 개발 실행 (Windows 터미널에서 권장)
 - `npm run tauri build` — 배포 빌드
 - Rust만 검증: `cd src-tauri && cargo check` (WSL에서는 `/mnt/c/Users/레이더송신소/.cargo/bin/cargo.exe check`)
@@ -97,9 +97,9 @@ src/
     map/useLeafletMap.ts       Leaflet 마운트 + 정적 레이어(활주로/경로/조류 섹터/충돌 보고) + 시정 원 갱신
     map/WindCanvas.tsx         바람 파티클 캔버스 (rAF)
 public/tiles/                  오프라인 베이스맵 타일 (생성물, `npm run tiles`) + manifest.json
-public/tiles-aerial/           항공사진 타일 z12–16 (생성물, `npm run tiles:aerial`) + manifest.json
+public/tiles-aerial/           항공사진 타일 z12–16 WebP, 여백 투명 (생성물, `npm run tiles:aerial`) + manifest.json
 scripts/fetch-tiles.mjs        CARTO 타일 다운로더 (Node, fetch)
-scripts/copy-aerial-tiles.mjs  항공사진 타일 복사기
+scripts/build-aerial-tiles.mjs 항공사진 타일 가공기 (sharp: 여백 마스킹 → WebP)
 tiles.config.json              basemap/aerial 설정 (스크립트와 앱이 공유)
 src-tauri/
   src/main.rs                  진입점 → boramae_lib::run()

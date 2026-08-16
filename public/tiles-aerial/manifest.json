@@ -10,7 +10,8 @@
     "maxLon": 126.958,
     "maxLat": 37.6882
   },
-  "tiles": 4938,
-  "format": "jpg",
-  "copiedAt": "2026-08-15T05:50:02.226Z"
+  "tiles": 3108,
+  "edgeTiles": 478,
+  "format": "webp",
+  "builtAt": "2026-08-16T08:51:35.104Z"
 }

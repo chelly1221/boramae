@@ -8,7 +8,7 @@ import type { Runway } from '../../data/types';
 /*
  * 오프라인 타일 (둘 다 빌드에 포함, 런타임 네트워크 요청 없음):
  *  - 베이스맵: CARTO 래스터, `tiles.config.json.basemap`의 줌 한 단계만 (npm run tiles)
- *  - 항공사진: 2023 김포공항 항공사진, z12–16 (npm run tiles:aerial) — 토글 오버레이
+ *  - 항공사진: 2023 김포공항 항공사진, z12–16 WebP (npm run tiles:aerial, 촬영 범위 밖은 투명/타일 없음) — 토글 오버레이
  * 받아둔 줌 밖은 타일을 스케일링해서 보여준다.
  */
 const BASE = tilesConfig.basemap;
@@ -147,7 +147,7 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
     }).addTo(map);
 
     // 항공사진 오버레이 (토글) — 범위 밖/누락 타일은 투명
-    const aerial = L.tileLayer('/tiles-aerial/{z}/{x}/{y}.jpg', {
+    const aerial = L.tileLayer('/tiles-aerial/{z}/{x}/{y}.webp', {
       attribution: '항공사진 © 한국공항공사 (2023)',
       minNativeZoom: AERIAL.minZoom,
       maxNativeZoom: AERIAL.maxZoom,
