@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { windColor } from '../../data/stats';
 import type { AtisRecord } from '../../data/types';
 import { IconArrowUp, IconPause, IconPlay } from '../icons';
-import { BIRD_ZONES, birdColor, birdHead, birdSize, useLeafletMap } from './useLeafletMap';
+import { birdColor, birdHead, birdSize, useLeafletMap } from './useLeafletMap';
 import { WindCanvas } from './WindCanvas';
 
 interface Props {
@@ -35,14 +35,14 @@ export function MapView({ recs, mapIdx, playing, windViz, aerial, initialZoom, s
   const mi = Math.min(mapIdx, recs.length - 1);
   const cur = recs[mi];
 
-  useLeafletMap(mapEl, { vis: cur.vis, visTxt: cur.visTxt, showVis: showVisCircle, activeRwy: cur.rwy, aerial }, initialZoom);
+  useLeafletMap(mapEl, { vis: cur.vis, visTxt: cur.visTxt, showVis: showVisCircle, activeRwy: cur.rwy, birds: cur.birds, aerial }, initialZoom);
 
   const showArrows = recs.length <= ARROW_MAX_CELLS;
 
   return (
-    <div className="mapview">
+    <div className={`mapview${aerial ? ' mapview--aerial' : ''}`}>
       <div ref={mapEl} className="mapview__map" />
-      <WindCanvas dir={cur.dir} spd={cur.spd} visible={windViz} />
+      <WindCanvas dir={cur.dir} spd={cur.spd} visible={windViz} bright={aerial} />
 
       {/* 플로팅 카드 */}
       <div className="map-cards">
@@ -61,16 +61,20 @@ export function MapView({ recs, mapIdx, playing, windViz, aerial, initialZoom, s
         <div className="map-card map-card--birds">
           <div className="map-card__between">
             <span className="map-card__label">BIRD ACTIVITY</span>
-            <span className="badge-orange">보고 {BIRD_ZONES.length}건</span>
+            <span className="badge-orange">{cur.birds.length ? `보고 ${cur.birds.length}건` : '보고 없음'}</span>
           </div>
-          {BIRD_ZONES.map((z) => (
-            <div key={birdHead(z)} className="bird">
-              <span className="bird__dot" style={{ background: birdColor(z) }} />
-              <span>
-                {z.kind} FLOCK · {z.nm}NM {z.dir} · {birdSize(z)}
-              </span>
-            </div>
-          ))}
+          {cur.birds.length ? (
+            cur.birds.map((z) => (
+              <div key={birdHead(z)} className="bird">
+                <span className="bird__dot" style={{ background: birdColor(z) }} />
+                <span>
+                  {z.kind} FLOCK · {z.nm}NM {z.dir} · {birdSize(z)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <span className="map-card__sub">선택 시각 전문에 조류 활동 보고 없음</span>
+          )}
           <div className="map-card__foot">최근 7일 충돌/회피 보고 2건</div>
         </div>
       </div>

@@ -295,14 +295,14 @@ svg {
   color: #fff;
   --nav-icon: rgba(255, 255, 255, 0.85);
 }
-/* 하위 항목이 선택된 부모(통계 분석): 은은한 열림 톤 */
+/* 하위 항목이 선택된 부모(분석): 은은한 열림 톤 */
 .nav__item--open {
   color: var(--ink-title);
   font-weight: 600;
   background: rgba(127, 13, 0, 0.06);
   --nav-icon: var(--primary);
 }
-/* 통계 분석 하위 메뉴 (상세 페이지 목록) — 부모 아이콘 중심에 가이드 라인 */
+/* 분석 하위 메뉴 (상세 페이지 목록) — 부모 아이콘 중심에 가이드 라인 */
 .nav__sub {
   position: relative;
   display: flex;
@@ -858,12 +858,19 @@ svg {
   transform: translate(-50%, -50%);
   font-size: 10px;
   font-weight: 700;
-  color: rgba(127, 13, 0, 0.75);
+  /* --pill-c: 베이스맵 위 글자색, --pill-c-b: 항공사진 위 글자색 (useLeafletMap의 pill()이 팔레트 두 벌을 심음) */
+  color: var(--pill-c, rgba(127, 13, 0, 0.75));
   background: rgba(253, 252, 252, 0.92);
   padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
   box-shadow: 0 1px 5px rgba(50, 35, 25, 0.15);
+}
+/* 항공사진 위: 어두운 반투명 배경 + 밝은 글자 */
+.mapview--aerial .vis-pill {
+  color: var(--pill-c-b, #fff);
+  background: rgba(11, 13, 18, 0.74);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 .vis-pill--sm {
   font-size: 9px;

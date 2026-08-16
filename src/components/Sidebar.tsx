@@ -16,7 +16,7 @@ interface Props {
 }
 
 const NAV: { key: View; label: string; icon: () => ReactElement }[] = [
-  { key: 'stats', label: '통계 분석', icon: IconStats },
+  { key: 'stats', label: '분석', icon: IconStats },
   { key: 'map', label: '지도', icon: IconMap },
   { key: 'import', label: '설정', icon: IconSettings },
 ];
@@ -47,7 +47,7 @@ export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total 
       <nav className="nav" data-tauri-drag-region="false">
         {NAV.map(({ key, label, icon: Icon }) => {
           const isStats = key === 'stats';
-          // 상세 페이지가 열려 있으면 부모(통계 분석)는 '열림' 톤, 선택 강조는 하위 항목이 가져감
+          // 상세 페이지가 열려 있으면 부모(분석)는 '열림' 톤, 선택 강조는 하위 항목이 가져감
           const active = view === key && !(isStats && inDetail);
           const open = isStats && inDetail;
           const cls = ['nav__item', active ? 'nav__item--active' : '', open ? 'nav__item--open' : ''].filter(Boolean).join(' ');
@@ -58,7 +58,7 @@ export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total 
                 <span>{label}</span>
               </div>
               {isStats && inStats && (
-                // 통계 분석 하위: 카드 클릭으로 들어가는 상세 페이지 목록 (PANELS 레지스트리 기준)
+                // 분석 하위: 카드 클릭으로 들어가는 상세 페이지 목록 (PANELS 레지스트리 기준)
                 <div className="nav__sub">
                   {PANEL_KEYS.map((k) => (
                     <div

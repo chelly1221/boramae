@@ -19,7 +19,7 @@ function SpdSwatch({ spd }: { spd: number }) {
   return <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: windColor(spd), marginRight: 6, verticalAlign: '1px' }} />;
 }
 
-/** 바람 상세 — 풍속/풍향 추이 · 바람장미 · 16방위 빈도 · 시간대별 프로파일 · 풍속 등급 · 강풍 이벤트 */
+/** 바람 상세 — 풍속/풍향 추이 · 바람 · 16방위 빈도 · 시간대별 프로파일 · 풍속 등급 · 강풍 이벤트 */
 export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
   const d = useMemo(() => computeWindDetail(recs, win), [recs, win]);
   const openBucket = (i: number) => {
@@ -154,7 +154,7 @@ export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
       </Section>
 
       <div className="dgrid-2">
-        <Section title="바람장미" sub="8방위 × 풍속 3구간 · 반경 = 빈도">
+        <Section title="바람" sub="8방위 × 풍속 3구간 · 반경 = 빈도">
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <svg width="216" height="216" viewBox="0 0 200 200" style={{ flexShrink: 0 }}>
               {[26, 52, 78].map((r) => (
@@ -252,7 +252,7 @@ export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
       <Section title="강풍 이벤트" sub={`풍속 ≥ ${STRONG_KT}KT 연속 구간 · 클릭 → 최대 풍속 원문`}>
         <DetailTable columns={evCols} rows={d.events} rowKey={(e) => e.start} onRowClick={(e) => onOpenRaw(e.maxIndex)} emptyText={`기간 내 ${STRONG_KT}KT 이상 강풍이 없습니다.`} />
         <span className="dsection__note">
-          연속 구간 = {STRONG_KT}KT 이상 전문이 끊기지 않고 이어진 범위(지속 = 첫 전문 ~ 마지막 전문 시각). 바람장미 구간(&lt;8 / 8–13 / ≥14KT)·주풍향은 통계 카드와 같은 정의이며, 정온은 {CALM_KT}KT 이하, 벡터 평균 풍향은 각 전문 풍향의 단위벡터 합 방향입니다.
+          연속 구간 = {STRONG_KT}KT 이상 전문이 끊기지 않고 이어진 범위(지속 = 첫 전문 ~ 마지막 전문 시각). 바람 구간(&lt;8 / 8–13 / ≥14KT)·주풍향은 통계 카드와 같은 정의이며, 정온은 {CALM_KT}KT 이하, 벡터 평균 풍향은 각 전문 풍향의 단위벡터 합 방향입니다.
         </span>
       </Section>
     </>

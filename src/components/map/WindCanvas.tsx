@@ -7,6 +7,16 @@ interface Props {
   /** 풍속(KT) */
   spd: number;
   visible: boolean;
+  /** 항공사진 위: 더 밝고 진한 궤적 */
+  bright: boolean;
+}
+
+/** "r,g,b" 문자열을 흰색 쪽으로 t만큼 섞는다 */
+function lighten(rgb: string, t: number) {
+  return rgb
+    .split(',')
+    .map((c) => Math.round(Number(c) + (255 - Number(c)) * t))
+    .join(',');
 }
 
 interface Particle {
@@ -17,10 +27,10 @@ interface Particle {
 }
 
 /** Windy 스타일 바람 파티클 오버레이 (design/map.html 이식) */
-export function WindCanvas({ dir, spd, visible }: Props) {
+export function WindCanvas({ dir, spd, visible, bright }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const wind = useRef({ dir, spd });
-  wind.current = { dir, spd };
+  const wind = useRef({ dir, spd, bright });
+  wind.current = { dir, spd, bright };
 
   useEffect(() => {
     const cv = ref.current;
@@ -44,18 +54,19 @@ export function WindCanvas({ dir, spd, visible }: Props) {
     resize();
 
     const tick = () => {
-      const { dir, spd } = wind.current;
+      const { dir, spd, bright } = wind.current;
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0,0,0,0.075)';
+      ctx.fillStyle = bright ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.075)';
       ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = 'source-over';
       const h = ((dir + 180) * Math.PI) / 180;
       const v = 0.45 + spd * 0.16;
       const dx = Math.sin(h);
       const dy = -Math.cos(h);
-      ctx.lineWidth = 1.2 + spd * 0.07;
+      ctx.lineWidth = (bright ? 1.5 : 1.2) + spd * 0.07;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = `rgba(${windColorRgb(spd)},0.6)`;
+      const rgb = windColorRgb(spd);
+      ctx.strokeStyle = bright ? `rgba(${lighten(rgb, 0.3)},0.9)` : `rgba(${rgb},0.6)`;
       for (const p of parts) {
         p.ph += 0.05;
         const wob = Math.sin(p.ph) * 0.28;

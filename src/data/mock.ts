@@ -1,9 +1,10 @@
 import { RUNWAY_TRUE_HEADING } from './airport';
-import type { Approach, AtisRecord, ImportedFile, Range, Runway, TimeWindow } from './types';
+import type { Approach, AtisRecord, BirdReport, Dir8, ImportedFile, Range, Runway, TimeWindow } from './types';
 
 /*
  * 데모용 목데이터 — 시각(ts)의 결정적 함수로 합성한다. 같은 시각은 어떤 기간으로 조회하든 같은 값.
  * 계절(기온·풍향·QNH·강수 확률)과 일변화(기온·풍속)를 반영하고, 새벽 03–06Z 안개·강수·뇌전 이벤트를 넣는다.
+ * 조류 활동 보고는 봄·가을 철새 이동기와 겨울에 잦고 새벽(21–24Z)·저녁(08–11Z)에 집중되도록 합성한다.
  * 정기 발행(:00/:30) 외에 상태가 크게 바뀌면 :15/:45에 임시 갱신 전문을 추가한다.
  * 실제 구현에서는 Tauri 백엔드(파서/DB)에서 오는 레코드로 대체.
  */
@@ -62,6 +63,60 @@ interface Wx {
   qnh: number;
   rwy: Runway;
   tags: string[];
+  birds: BirdReport[];
+}
+
+/** 조류 보고 방위 가중치 — 한강·서해 쪽(NW/N/W)이 잦다 */
+const BIRD_DIRS: [Dir8, number][] = [
+  ['NW', 0.26],
+  ['N', 0.18],
+  ['NE', 0.14],
+  ['W', 0.14],
+  ['SW', 0.1],
+  ['SE', 0.08],
+  ['E', 0.05],
+  ['S', 0.05],
+];
+function pickDir(u: number): Dir8 {
+  let acc = 0;
+  for (const [d, w] of BIRD_DIRS) {
+    acc += w;
+    if (u < acc) return d;
+  }
+  return 'NW';
+}
+const DIR8_ORDER: Dir8[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+/**
+ * 조류 활동 보고 (일 단위 시드).
+ * 활동일 확률: 기본 12% + 철새 이동기(4월 초·10월 말 피크) 최대 +55% + 겨울(한강 도래) 최대 +30%.
+ * 활동일이면 새벽(20.5–22Z 시작, 1–2h)과 저녁(7.5–9.5Z 시작, 1.5–3h, 60%)에 보고가 붙고, 겨울엔 종일 보고하는 날(30%)도 있다.
+ * 보고 내용은 그날의 대표 무리(방위·거리·규모) + 30% 확률의 두 번째 작은 무리(새벽/저녁만).
+ */
+function birdsAt(doy: number, hUTC: number, dayKey: number, season: number): BirdReport[] {
+  const mig = Math.exp(-(((doy - 95) / 22) ** 2)) + Math.exp(-(((doy - 300) / 25) ** 2));
+  const pDay = Math.min(0.85, 0.12 + 0.55 * mig + 0.3 * Math.max(0, season));
+  if (h01(dayKey, 61) >= pDay) return [];
+  const allDay = season > 0.4 && h01(dayKey, 62) < 0.3;
+  const dawnS = 20.5 + 1.5 * h01(dayKey, 63);
+  const dawnL = 1 + h01(dayKey, 64);
+  const duskS = 7.5 + 2 * h01(dayKey, 65);
+  const duskL = 1.5 + 1.5 * h01(dayKey, 66);
+  const hasDusk = h01(dayKey, 67) < 0.6;
+  const peak = (hUTC >= dawnS && hUTC < dawnS + dawnL) || (hasDusk && hUTC >= duskS && hUTC < duskS + duskL);
+  if (!peak && !allDay) return [];
+
+  const dir = pickDir(h01(dayKey, 68));
+  const nm = 1 + Math.floor(h01(dayKey, 69) * 6);
+  const kind = h01(dayKey, 70) < 0.3 + 0.3 * Math.max(0, season) ? 'HVY' : 'LGT';
+  const out: BirdReport[] = [{ kind, dir, nm }];
+  if (peak && h01(dayKey, 71) < 0.3) {
+    // 두 번째 무리: 이웃 방위, 가까운 거리, 작은 무리
+    const di = DIR8_ORDER.indexOf(dir);
+    const dir2 = DIR8_ORDER[(di + (h01(dayKey, 72) < 0.5 ? 1 : 7)) % 8];
+    out.push({ kind: 'LGT', dir: dir2, nm: 1 + Math.floor(h01(dayKey, 73) * 4) });
+  }
+  return out;
 }
 
 function wxAt(ts: number): Wx {
@@ -145,14 +200,21 @@ function wxAt(ts: number): Wx {
   // QNH: 겨울 고기압 ~ 여름 저기압 + 느린 변동 + 반일주기
   const qnh = Math.round(1015 + 7 * season + 6 * vnoise(ts, 3 * DAY, 31) + 2 * vnoise(ts, 12 * HOUR, 32) + Math.cos((2 * Math.PI * (hUTC - 2)) / 12));
 
-  return { t: Math.round(t), dp: Math.round(t - spread), dir, spd, vis, cloud, ceil, qnh, rwy, tags };
+  const birds = birdsAt(doy, hUTC, dayKey, season);
+
+  return { t: Math.round(t), dp: Math.round(t - spread), dir, spd, vis, cloud, ceil, qnh, rwy, tags, birds };
 }
+
+/** 조류 보고 → 전문 remarks 토큰 ("HVY FLOCK 5NM NW OF AD") */
+export const birdPhrase = (b: BirdReport) => `${b.kind} FLOCK ${b.nm}NM ${b.dir} OF AD`;
+const birdKey = (bs: BirdReport[]) => bs.map(birdPhrase).join('|');
 
 /** 임시 갱신 판정: 직전 발행 대비 유의미한 변화 */
 function significant(a: Wx, b: Wx): boolean {
   if (a.rwy !== b.rwy) return true;
   if (a.cloud !== b.cloud) return true;
   if (a.tags.join() !== b.tags.join()) return true;
+  if (birdKey(a.birds) !== birdKey(b.birds)) return true;
   const visCat = (v: number) => (v >= 10 ? 2 : v >= 5 ? 1 : 0);
   if (visCat(a.vis) !== visCat(b.vis)) return true;
   const dd = Math.abs(((a.dir - b.dir + 540) % 360) - 180);
@@ -176,6 +238,7 @@ function toRecord(ts: number, w: Wx, letter: string): AtisRecord {
   const visTxt = w.vis >= 10 ? '10KM' : w.vis >= 5 ? `${w.vis}KM` : `${Math.round(w.vis * 1000)}M`;
   const wind = `${String(d10).padStart(3, '0')}/${pad2(w.spd)}KT`;
   const wxTok = w.tags.length ? ' ' + w.tags.join(' ') : '';
+  const birdTok = w.birds.length ? ` CTN BIRD ACTIVITY ${w.birds.map(birdPhrase).join(' AND ')}.` : '';
   return {
     ts,
     time: `${dayTag} ${hh}${mm}Z`,
@@ -195,10 +258,11 @@ function toRecord(ts: number, w: Wx, letter: string): AtisRecord {
     tw,
     app,
     tags: w.tags,
+    birds: w.birds,
     wind,
     raw:
       `RKSS ATIS INFO ${letter} ${hh}${mm}Z. ${app} APCH RWY ${w.rwy.replace('/', ' AND ')}. ` +
-      `WIND ${wind}. VIS ${visTxt}${wxTok}. ${w.cloud}. T${w.t}/DP${w.dp}. QNH ${w.qnh}HPA. TRL 140. ACK INFO ${letter}.`,
+      `WIND ${wind}. VIS ${visTxt}${wxTok}. ${w.cloud}. T${w.t}/DP${w.dp}. QNH ${w.qnh}HPA. TRL 140.${birdTok} ACK INFO ${letter}.`,
   };
 }
 

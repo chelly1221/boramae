@@ -3,9 +3,9 @@ import type { AtisRecord, TimeWindow } from '../types';
 import { autoUnit, bucketize, bucketValues, DIR16, DIR8, dir16, hourProfile, meanDir, MIN, niceTicks, pct, runs, UNIT_MS, type Bucket, type Unit } from './agg';
 
 /*
- * 바람 상세 파생값 — 풍속/풍향 추이(자동 해상도), 바람장미(8방위 × 3속도), 16방위 빈도,
+ * 바람 상세 파생값 — 풍속/풍향 추이(자동 해상도), 바람(8방위 × 3속도), 16방위 빈도,
  * 시간대별 평균 풍속, 풍속 등급 분포, 강풍(≥15KT) 연속 구간 이벤트.
- * 바람장미 구간(<8 / 8–13 / ≥14KT)·주풍향 정의는 통계 카드(stats.ts computeStats)와 동일.
+ * 바람 구간(<8 / 8–13 / ≥14KT)·주풍향 정의는 통계 카드(stats.ts computeStats)와 동일.
  */
 
 /** 정온 판정 (KT 이하) */
@@ -17,7 +17,7 @@ export const EVENT_PAD_MS = 15 * MIN;
 /** 차트에 강풍 띠를 그리는 최대 구간 수 — 이보다 많으면(장기간) 띠가 노이즈가 되므로 생략하고 표로 안내 */
 export const MAX_BANDS = 60;
 
-/** 풍속 등급 (카드 바람장미 구간을 더 세분) */
+/** 풍속 등급 (카드 바람 구간을 더 세분) */
 export const SPEED_CLASSES: { label: string; lo: number; hi: number; color: string; desc: string }[] = [
   { label: '≤3', lo: 0, hi: 3, color: '#5b8bc9', desc: '정온' },
   { label: '4–7', lo: 4, hi: 7, color: '#4aa88c', desc: '약풍' },
@@ -26,7 +26,7 @@ export const SPEED_CLASSES: { label: string; lo: number; hi: number; color: stri
   { label: '≥20', lo: 20, hi: Infinity, color: '#c8422e', desc: '매우 강함' },
 ];
 
-/** 바람장미 속도 구간 (카드와 동일) */
+/** 바람 속도 구간 (카드와 동일) */
 export const ROSE_BINS = [
   { label: '< 8KT', color: 'rgba(127,13,0,0.28)' },
   { label: '8–13KT', color: 'rgba(127,13,0,0.58)' },
@@ -171,7 +171,7 @@ export function computeWindDetail(recs: AtisRecord[], win: TimeWindow): WindDeta
     const rad = (r.dir * Math.PI) / 180;
     sx += Math.sin(rad);
     sy += Math.cos(rad);
-    // 바람장미: 카드(stats.ts)와 동일 구간
+    // 바람: 카드(stats.ts)와 동일 구간
     const d8 = Math.round(r.dir / 45) % 8;
     rose[d8][r.spd < 8 ? 0 : r.spd < 14 ? 1 : 2]++;
     const d16 = Math.round(r.dir / 22.5) % 16;
@@ -181,7 +181,7 @@ export function computeWindDetail(recs: AtisRecord[], win: TimeWindow): WindDeta
     cls[ci < 0 ? cls.length - 1 : ci]++;
   });
 
-  // 바람장미 path (stats.ts computeStats와 동일 기하)
+  // 바람 path (stats.ts computeStats와 동일 기하)
   const rose8 = rose.map((a) => a[0] + a[1] + a[2]);
   const maxT = maxOf(rose8);
   const roseD: [string, string, string] = ['', '', ''];

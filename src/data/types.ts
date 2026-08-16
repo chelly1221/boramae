@@ -4,7 +4,21 @@ export type Runway = '32L/32R' | '14L/14R';
 export type Approach = 'ILS' | 'RNP' | 'VOR';
 
 /** 통계 카드 → 상세 페이지 키 (시계열이 의미 있는 항목) */
-export type DetailKey = 'temp' | 'wind' | 'xwind' | 'runway' | 'heat' | 'update' | 'cloud' | 'qnh' | 'vis' | 'tags';
+export type DetailKey = 'temp' | 'wind' | 'xwind' | 'runway' | 'heat' | 'update' | 'cloud' | 'qnh' | 'vis' | 'tags' | 'bird';
+
+/** 조류 무리 규모 — HVY 큰 무리 / LGT 작은 무리 */
+export type BirdKind = 'HVY' | 'LGT';
+/** 8방위 (ARP 기준) */
+export type Dir8 = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+
+/** ATIS remarks의 조류 활동 보고 1건 — "HVY FLOCK 5NM NW" */
+export interface BirdReport {
+  kind: BirdKind;
+  /** ARP 기준 방위 */
+  dir: Dir8;
+  /** ARP 기준 거리 (NM) */
+  nm: number;
+}
 
 /** 상세 페이지 조회 기간 (epoch ms, UTC, [from, to]) */
 export interface TimeWindow {
@@ -42,6 +56,8 @@ export interface AtisRecord {
   tw: number;
   app: Approach;
   tags: string[];
+  /** 조류 활동 보고 (remarks) — 없으면 빈 배열 */
+  birds: BirdReport[];
   /** "DDD/SSKT" */
   wind: string;
   raw: string;

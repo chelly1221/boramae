@@ -47,7 +47,7 @@ function parseTs(v: string | null): number | null {
 }
 
 /**
- * 개발/스크린샷 편의: `#view=map&range=7d&raw=3&aerial=1&zoom=15` 또는
+ * 개발/스크린샷 편의: `#view=map&range=7d&raw=3&idx=40&aerial=0&zoom=15` (idx = 타임 스크러버 위치) 또는
  * `#view=stats&detail=qnh&from=2026080100&to=2026081512` 형태의 해시로 초기 상태 지정
  */
 function initialFromHash() {
@@ -55,8 +55,10 @@ function initialFromHash() {
   const view = p.get('view');
   const range = p.get('range');
   const raw = p.get('raw');
-  const aerial = p.get('aerial') === '1';
+  // 항공사진 오버레이는 기본 ON — `aerial=0`일 때만 끔
+  const aerial = p.get('aerial') !== '0';
   const zoom = p.get('zoom');
+  const idx = p.get('idx');
   const detail = p.get('detail');
   const from = parseTs(p.get('from'));
   const to = parseTs(p.get('to'));
@@ -66,6 +68,7 @@ function initialFromHash() {
     rawIdx: raw != null && /^\d+$/.test(raw) ? Number(raw) : null,
     aerial,
     mapZoom: zoom != null && /^\d+$/.test(zoom) ? Number(zoom) : undefined,
+    mapIdx: idx != null && /^\d+$/.test(idx) ? Number(idx) : null,
     detail: detail && detail in PANELS ? (detail as DetailKey) : null,
     win: from != null && to != null && to > from ? ({ from, to } as TimeWindow) : null,
   };
@@ -83,7 +86,10 @@ export default function App() {
   const [range, setRange] = useState<Range>(INIT.range);
   const [detail, setDetail] = useState<DetailKey | null>(INIT.detail);
   const [win, setWin] = useState<TimeWindow>(INIT.win ?? rangeWindow(INIT.range));
-  const [mapIdx, setMapIdx] = useState(() => thin(getRecords(INIT.range), MAP_MAX_CELLS).length - 1);
+  const [mapIdx, setMapIdx] = useState(() => {
+    const last = thin(getRecords(INIT.range), MAP_MAX_CELLS).length - 1;
+    return INIT.mapIdx != null ? Math.min(INIT.mapIdx, last) : last;
+  });
   const [playing, setPlaying] = useState(false);
   const [windViz, setWindViz] = useState(true);
   const [aerial, setAerial] = useState(INIT.aerial);

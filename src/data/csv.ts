@@ -1,7 +1,7 @@
 import { isTauri } from '../tauri';
 import type { AtisRecord, Range } from './types';
 
-const HEADER = ['time', 'info', 'wind', 'vis_km', 'cloud', 'temp_c', 'dewpoint_c', 'qnh_hpa', 'rwy', 'apch', 'wx', 'raw'];
+const HEADER = ['time', 'info', 'wind', 'vis_km', 'cloud', 'temp_c', 'dewpoint_c', 'qnh_hpa', 'rwy', 'apch', 'wx', 'birds', 'raw'];
 
 function csvField(v: string | number): string {
   const s = String(v);
@@ -11,7 +11,9 @@ function csvField(v: string | number): string {
 /** 레코드 배열 → CSV 텍스트 (BOM 포함 UTF-8, Excel 호환) */
 export function toCsv(recs: AtisRecord[]): string {
   const rows = recs.map((r) =>
-    [r.time, r.letter, r.wind, r.vis, r.cloud, r.t, r.dp, r.qnh, r.rwy, r.app, r.tags.join(' '), r.raw].map(csvField).join(','),
+    [r.time, r.letter, r.wind, r.vis, r.cloud, r.t, r.dp, r.qnh, r.rwy, r.app, r.tags.join(' '), r.birds.map((b) => `${b.kind} ${b.nm}NM ${b.dir}`).join('; '), r.raw]
+      .map(csvField)
+      .join(','),
   );
   return '\ufeff' + [HEADER.join(','), ...rows].join('\n');
 }

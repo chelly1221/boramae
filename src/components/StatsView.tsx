@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { areaPts, type Stats } from '../data/stats';
+import { areaPts, BIRD_COLOR, type Stats } from '../data/stats';
 import type { DetailKey, HeatRow } from '../data/types';
 import { IconChevronRight } from './icons';
 
@@ -113,7 +113,7 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
           </div>
         </LinkCard>
 
-        {/* 바람 장미 */}
+        {/* 바람 */}
         <LinkCard detail="wind" onOpen={onOpenDetail} style={{ gap: 6 }}>
           <span className="card__title">바람</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -376,25 +376,49 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
         </LinkCard>
       </div>
 
-      {/* 기상 태그 */}
-      <LinkCard detail="tags" onOpen={onOpenDetail}>
-        <span className="card__title">
-          기상현상 태그 빈도 <small>· 전문 remarks 토큰</small>
-        </span>
-        <div className="tags">
-          {s.tagChips.length ? (
-            s.tagChips.map((tg) => (
-              <div key={tg.tag} className="tag">
-                <span className="tag__code">{tg.tag}</span>
-                <span className="tag__desc">{tg.desc}</span>
-                <span className="tag__n">{tg.n}</span>
-              </div>
-            ))
-          ) : (
-            <span className="card__note">기간 내 특이기상 태그 없음</span>
-          )}
-        </div>
-      </LinkCard>
+      <div className="grid-2">
+        {/* 기상 태그 */}
+        <LinkCard detail="tags" onOpen={onOpenDetail}>
+          <span className="card__title">
+            기상현상 태그 빈도 <small>· 전문 remarks 토큰</small>
+          </span>
+          <div className="tags">
+            {s.tagChips.length ? (
+              s.tagChips.map((tg) => (
+                <div key={tg.tag} className="tag">
+                  <span className="tag__code">{tg.tag}</span>
+                  <span className="tag__desc">{tg.desc}</span>
+                  <span className="tag__n">{tg.n}</span>
+                </div>
+              ))
+            ) : (
+              <span className="card__note">기간 내 특이기상 태그 없음</span>
+            )}
+          </div>
+        </LinkCard>
+
+        {/* 조류 활동 */}
+        <LinkCard detail="bird" onOpen={onOpenDetail}>
+          <span className="card__title">
+            조류 활동 <small>· BIRD ACTIVITY 보고</small>
+          </span>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <Stat lg label="보고 전문" value={`${s.bird.n}건`} />
+            <Stat lg label="전문 대비" value={`${s.bird.pct}%`} />
+            <Stat lg label="HVY 큰 무리" value={`${s.bird.hvy}건`} color={s.bird.hvy ? BIRD_COLOR.HVY : undefined} />
+            <Stat lg label="최다 방위" value={s.bird.topDir ? s.bird.topDir.dir : '—'} />
+          </div>
+          <span className="card__note">
+            {s.bird.last ? (
+              <>
+                마지막 보고 <b style={{ color: BIRD_COLOR[s.bird.last.kind] }}>{s.bird.last.head}</b> · {s.bird.last.time}
+              </>
+            ) : (
+              '기간 내 조류 활동 보고 없음'
+            )}
+          </span>
+        </LinkCard>
+      </div>
     </div>
   );
 }

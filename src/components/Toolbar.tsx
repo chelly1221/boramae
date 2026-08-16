@@ -17,7 +17,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-const TITLES: Record<View, string> = { stats: '통계 분석', map: '지도', import: '설정' };
+const TITLES: Record<View, string> = { stats: '분석', map: '지도', import: '설정' };
 const RANGES: { key: Range; label: string }[] = [
   { key: '24h', label: '24시간' },
   { key: '7d', label: '7일' },
@@ -31,9 +31,9 @@ export function Toolbar({ view, range, onRange, detailTitle, detailSub, onBack, 
     <header className="toolbar" data-tauri-drag-region="deep">
       {inDetail ? (
         <>
-          <div className="toolbar__back" data-tauri-drag-region="false" onClick={onBack} title="통계 분석으로 (ESC)">
+          <div className="toolbar__back" data-tauri-drag-region="false" onClick={onBack} title="분석으로 (ESC)">
             <IconChevronLeft />
-            <span>통계 분석</span>
+            <span>분석</span>
           </div>
           <div className="toolbar__title">{detailTitle}</div>
           <div className="toolbar__sub">{detailSub}</div>

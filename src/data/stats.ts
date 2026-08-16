@@ -1,4 +1,4 @@
-import type { Approach, AtisRecord, HeatCell, HeatRow, Range } from './types';
+import type { Approach, AtisRecord, BirdKind, BirdReport, Dir8, HeatCell, HeatRow, Range } from './types';
 
 const HOUR_MS = 3600000;
 const DAY_MS = 24 * HOUR_MS;
@@ -28,7 +28,7 @@ export function linePts(vals: number[], h: number, min: number, max: number): st
 /** 라인 아래를 채우는 폴리곤 points (baseline y=120) */
 export const areaPts = (pts: string) => `${pts} 550,120 10,120`;
 
-/** 도넛 섹터 path (바람 장미용) — 각도는 라디안, 0 = 북, 시계방향 */
+/** 도넛 섹터 path (바람용) — 각도는 라디안, 0 = 북, 시계방향 */
 export function sectorPath(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
   const p = (r: number, a: number) => `${(cx + r * Math.sin(a)).toFixed(1)},${(cy - r * Math.cos(a)).toFixed(1)}`;
   return (
@@ -68,6 +68,18 @@ export interface TagChip {
   desc: string;
 }
 
+export interface BirdCard {
+  /** 조류 보고가 있는 전문 수 / 비율(%) */
+  n: number;
+  pct: number;
+  /** HVY(큰 무리) 보고 전문 수 */
+  hvy: number;
+  /** 최다 보고 방위 (없으면 null) */
+  topDir: { dir: Dir8; n: number } | null;
+  /** 마지막 보고 전문 (인덱스·시각·내용) */
+  last: { index: number; time: string; head: string; kind: BirdKind } | null;
+}
+
 export interface Stats {
   total: number;
   firstTime: string;
@@ -81,7 +93,7 @@ export interface Stats {
   spreadNow: number;
   spreadMin: number;
   fogRisk: boolean;
-  // 바람 장미 (3 속도 구간별 path)
+  // 바람 (3 속도 구간별 path)
   roseD: [string, string, string];
   domDir: string;
   domPct: number;
@@ -115,11 +127,39 @@ export interface Stats {
   qnhDelta: string;
   // 태그
   tagChips: TagChip[];
+  // 조류 활동
+  bird: BirdCard;
 }
 
 const DIR_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const APP_COLORS: Record<Approach, string> = { ILS: '#7f0d00', RNP: '#b4451c', VOR: '#8c7a6e' };
 export const TAG_DESC: Record<string, string> = { BR: '박무', HZ: '연무', RA: '비', SN: '눈', TS: '뇌전', FG: '안개' };
+/** 조류 무리 규모별 색 (지도 섹터·카드·상세 공용, 베이스맵 톤) */
+export const BIRD_COLOR: Record<BirdKind, string> = { HVY: '#e05a2b', LGT: '#d98a0c' };
+export const BIRD_KIND_LABEL: Record<BirdKind, string> = { HVY: '큰 무리', LGT: '작은 무리' };
+/** "HVY FLOCK 5NM NW" */
+export const birdHead = (b: BirdReport) => `${b.kind} FLOCK ${b.nm}NM ${b.dir}`;
+
+/** 조류 활동 카드 파생값 */
+export function computeBirdCard(recs: AtisRecord[]): BirdCard {
+  const dirCnt = new Map<Dir8, number>();
+  let n = 0;
+  let hvy = 0;
+  let last: BirdCard['last'] = null;
+  recs.forEach((r, i) => {
+    if (!r.birds.length) return;
+    n++;
+    if (r.birds.some((b) => b.kind === 'HVY')) hvy++;
+    r.birds.forEach((b) => dirCnt.set(b.dir, (dirCnt.get(b.dir) ?? 0) + 1));
+    const main = r.birds.find((b) => b.kind === 'HVY') ?? r.birds[0];
+    last = { index: i, time: r.time, head: birdHead(main), kind: main.kind };
+  });
+  let topDir: BirdCard['topDir'] = null;
+  dirCnt.forEach((v, k) => {
+    if (!topDir || v > topDir.n) topDir = { dir: k, n: v };
+  });
+  return { n, pct: recs.length ? Math.round((n / recs.length) * 100) : 0, hvy, topDir, last };
+}
 /** 갱신 빈도: 정기 발행은 시간당 2회(:00/:30) — 일평균이 이를 넘으면 임시 갱신 포함으로 판정 */
 const UPD_REGULAR_PER_HOUR = 2;
 
@@ -143,7 +183,7 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
   const spreads = recs.map((r) => r.t - r.dp);
   const spreadMin = Math.min(...spreads);
 
-  // 바람 장미
+  // 바람
   const rose: number[][] = Array.from({ length: 8 }, () => [0, 0, 0]);
   recs.forEach((r) => {
     const d = Math.round(r.dir / 45) % 8;
@@ -266,6 +306,7 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     qnhMin: Math.round(qnhMinV),
     qnhDelta: (qnhMaxV - qnhMinV).toFixed(1),
     tagChips,
+    bird: computeBirdCard(recs),
   };
 }
 
