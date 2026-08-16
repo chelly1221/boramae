@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 지도: **Leaflet 1.9** 직접 통합 (`src/components/map/useLeafletMap.ts`). 타일은 전부 오프라인(빌드 포함), 런타임 네트워크 요청 없음:
   - 베이스맵: CARTO Voyager, `tiles.config.json.basemap` 기준 줌 12 한 단계만 (`npm run tiles` → `public/tiles/`)
   - 항공사진 오버레이(**기본 ON**, 툴바 토글): 2023 김포공항 항공사진 z12–16, `tiles.config.json.aerial` 기준 원본(`C:/code/BRA_Gimpo.vol1/image_tiles_Gimpo_2023`)에서 가공 (`npm run tiles:aerial` → `public/tiles-aerial/`, WebP ~51MB). 원본 jpg에는 촬영 범위(공항 중심 원 + 활주로 방향 띠) 밖이 검정/흰색으로 구워져 있어, 스크립트가 z14 마스크(구멍 채움 → 침식/팽창으로 핵심/경계띠/바깥 3구역)로 여백을 투명 처리하고 전부 여백인 타일은 버린다 (`scripts/build-aerial-tiles.mjs`, devDependency `sharp`)
-  - 오버레이 팔레트 2벌 (`useLeafletMap.ts`의 `LIGHT`/`BRIGHT`): 항공사진 ON이면 활주로·경로·시정 원·항행시설·조류 섹터가 밝은 색(코랄/흰색/하늘색/노랑)으로 바뀌고 선 아래 어두운 헤일로가 깔림, 라벨 필은 `.mapview--aerial .vis-pill`로 어두운 배경(필 색은 `--pill-c`/`--pill-c-b` CSS 변수 두 벌), 바람 파티클도 더 밝고 진하게(`WindCanvas bright`). 재스타일은 `themed` 목록에 `setStyle` 일괄 적용
+  - 오버레이 팔레트 2벌 (`useLeafletMap.ts`의 `LIGHT`/`BRIGHT`): 항공사진 ON이면 활주로·경로·시정 원·항행시설·조류 섹터가 밝은 색(활주로·연장선 노랑 `runway`, ARP·ILS 점 코랄 `primary`, 시정 원 흰색, VOR 하늘색, 조류 주황/노랑)으로 바뀌고 선 아래 어두운 헤일로가 깔림, 라벨 필은 `.mapview--aerial .vis-pill`로 어두운 배경(필 색은 `--pill-c`/`--pill-c-b` CSS 변수 두 벌), 바람 파티클도 더 밝고 진하게(`WindCanvas bright`). 재스타일은 `themed` 목록에 `setStyle` 일괄 적용
 - 공항 정밀 좌표: `src/data/airport.ts` (RKSS ARP, 활주로 시단 4점, LOC/GP/VOR 위치·주파수·코스 — BRA SUITE config_BRA.js 출처). 활주로 진방위 135/315는 측풍 계산에도 사용
 - CSV: `tauri-plugin-dialog`의 save 다이얼로그 + `save_text_file` 커맨드. 브라우저(vite dev)에서는 Blob 다운로드 폴백
 - 앱 identifier `kr.co.airport.boramae`, 창 1280×800 (min 1024×680), **`maximized: true`로 최대화 상태 시작**, **`decorations: false`** — OS 타이틀바 없이 macOS 스타일 커스텀 타이틀바 사용:

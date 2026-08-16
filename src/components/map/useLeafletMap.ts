@@ -35,8 +35,10 @@ const PRIMARY = '#7f0d00';
  */
 export interface Palette {
   bright: boolean;
-  /** 활주로·접근/출발 경로·ARP·ILS 점 */
+  /** ARP·ILS 점 */
   primary: string;
+  /** 활주로·접근/출발 경로(연장선) */
+  runway: string;
   /** 시정 원 (정상 / 저하 <10km) */
   vis: string;
   visLow: string;
@@ -53,6 +55,7 @@ export interface Palette {
 export const LIGHT: Palette = {
   bright: false,
   primary: PRIMARY,
+  runway: PRIMARY,
   vis: 'rgba(127,13,0,0.45)',
   visLow: '#c8871c',
   vor: '#6b8cae',
@@ -66,6 +69,7 @@ export const LIGHT: Palette = {
 export const BRIGHT: Palette = {
   bright: true,
   primary: '#ff6a4d',
+  runway: '#ffe83a',
   vis: '#ffffff',
   visLow: '#ffc857',
   vor: '#7fd3ff',
@@ -161,8 +165,8 @@ function haloedLine(latlngs: L.LatLngTuple[], weight: number, main: (p: Palette)
   return { halo, line, themed: [{ layer: halo, style: hs }, { layer: line, style: main }] as Themed[] };
 }
 
-const approachStyle = (p: Palette): L.PathOptions => ({ color: p.primary, weight: 2, dashArray: '6 6', opacity: p.bright ? 0.9 : 0.55 });
-const departureStyle = (p: Palette): L.PathOptions => ({ color: p.primary, weight: 2, dashArray: '3 7', opacity: p.bright ? 0.7 : 0.4 });
+const approachStyle = (p: Palette): L.PathOptions => ({ color: p.runway, weight: 2, dashArray: '6 6', opacity: p.bright ? 0.9 : 0.55 });
+const departureStyle = (p: Palette): L.PathOptions => ({ color: p.runway, weight: 2, dashArray: '3 7', opacity: p.bright ? 0.7 : 0.4 });
 
 function drawPaths(group: L.LayerGroup, activeRwy: Runway, pal: Palette) {
   group.clearLayers();
@@ -256,7 +260,7 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
 
     // 활주로 2본 — 시단(THR) 좌표 기준 (항공사진 위에서는 헤일로 포함)
     const runways = new Map<string, L.Polyline>();
-    const runwayStyle = (p: Palette): L.PathOptions => ({ color: p.primary, weight: 5, opacity: p.bright ? 0.95 : 0.9 });
+    const runwayStyle = (p: Palette): L.PathOptions => ({ color: p.runway, weight: 5, opacity: p.bright ? 0.95 : 0.9 });
     for (const strip of RKSS.runways) {
       const { halo, line, themed: t } = haloedLine([ll(strip.ends[0].thr), ll(strip.ends[1].thr)], 5, runwayStyle, pal);
       halo.addTo(map);
