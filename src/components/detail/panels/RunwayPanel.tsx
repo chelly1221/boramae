@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { DAY, fmtDayHM, fmtDT, fmtDur, fmtNum, niceTicks } from '../../../data/detail/agg';
-import { bucketLabel, computeRunwayDetail, DIR8_LABELS, RWY_32, rwyPrefix, type RwyChange } from '../../../data/detail/runway';
+import { bucketLabel, computeRunwayDetail, DIR8_LABELS, RWY_32, rwyPrefix, type RwyChange, type RwyConfigChange, type RwyConfigCount } from '../../../data/detail/runway';
 import { BarChart, HOUR_LABELS } from '../charts';
 import { DetailTable, Empty, Legend, Section, StatTiles, type Column } from '../primitives';
 import type { PanelProps } from './types';
@@ -72,6 +72,19 @@ export function RunwayPanel({ recs, win, onOpenRaw }: PanelProps) {
     },
   ];
 
+  const cfgCols: Column<RwyConfigCount>[] = [
+    { key: 'cfg', label: '배치', mono: true, render: (c) => <span style={{ fontWeight: 700, color: c.rwy === RWY_32 ? C32 : C14 }}>{c.config}</span> },
+    { key: 'dir', label: '방향', mono: true, render: (c) => rwyPrefix(c.rwy) },
+    { key: 'n', label: '전문 수', align: 'right', mono: true, render: (c) => <b>{c.n.toLocaleString()}</b> },
+    { key: 'pct', label: '비율', align: 'right', mono: true, render: (c) => `${c.pct}%` },
+  ];
+  const cfgChgCols: Column<RwyConfigChange>[] = [
+    { key: 'ts', label: '시각', mono: true, render: (e) => fmtDT(e.ts) },
+    { key: 'from', label: '이전 배치', mono: true, render: (e) => e.from },
+    { key: 'to', label: '새 배치', mono: true, render: (e) => <span style={{ fontWeight: 700, color: e.rwy === RWY_32 ? C32 : C14 }}>{e.to}</span> },
+    { key: 'wind', label: '당시 바람', mono: true, render: (e) => e.wind },
+  ];
+
   const completeCount = d.segments.filter((s) => s.complete).length;
   /** 하루 미만 창에서는 회/일 환산이 무의미 */
   const showPerDay = win.to - win.from >= DAY;
@@ -104,6 +117,11 @@ export function RunwayPanel({ recs, win, onOpenRaw }: PanelProps) {
             label: '마지막 전환',
             value: d.lastChange ? fmtDayHM(d.lastChange.ts) : '—',
             sub: d.lastChange ? <Sub lines={[`${d.lastChange.label} · ${d.lastChange.wind}`, `이후 ${fmtDur(d.currentHoldMs)} 유지`]} /> : <Sub lines={[`${d.current} 유지 중`, fmtDur(d.currentHoldMs)]} />,
+          },
+          {
+            label: '현재 배치',
+            value: <span style={{ fontSize: '0.8em' }}>{d.currentConfig}</span>,
+            sub: <Sub lines={[`배치 ${d.configs.length}종 사용`, `같은 방향 내 교체 ${d.configChanges.length}회`]} />,
           },
         ]}
       />
@@ -244,11 +262,21 @@ export function RunwayPanel({ recs, win, onOpenRaw }: PanelProps) {
         </Section>
       </div>
 
+      <div className="dgrid-2">
+        <Section title="활주로 배치별 사용" sub="착륙(ARR) / 이륙(DEP) 조합별 전문 수 · 클릭 → 마지막 사용 원문">
+          <DetailTable columns={cfgCols} rows={d.configs} rowKey={(c) => c.config} onRowClick={(c) => onOpenRaw(c.lastIndex)} emptyText="전문이 없습니다." />
+          <span className="dsection__note">평상시 배치: 32 방향은 ARR 32L·DEP 32R 또는 ARR 32R·DEP 32L, 14 방향은 ARR 14R·DEP 14L. 같은 활주로에 ARR/DEP가 함께 지정된 배치는 단일 활주로 운영입니다.</span>
+        </Section>
+        <Section title="같은 방향 내 배치 교체" sub={`방향은 그대로이고 착륙/이륙 활주로만 바뀐 전문 ${d.configChanges.length}건 · 클릭 → 원문`}>
+          <DetailTable columns={cfgChgCols} rows={[...d.configChanges].reverse()} rowKey={(e) => e.index} onRowClick={(e) => onOpenRaw(e.index)} emptyText="기간 내 같은 방향 안의 배치 교체가 없습니다." />
+        </Section>
+      </div>
+
       <Section title="전환 이벤트 전체 목록" sub={`${d.events.length}건 · 최신순 · 클릭 → 원문`}>
         <DetailTable columns={evCols} rows={eventsDesc} rowKey={(e) => e.index} onRowClick={(e) => onOpenRaw(e.index)} emptyText="기간 내 활주로 전환이 없습니다." />
         <span className="dsection__note">
-          전환 = 직전 전문과 사용 활주로가 다른 전문 (통계 카드와 동일). 직전 활주로 배풍 = 전환 시 바람을 직전 활주로 진방위(32: 315°, 14: 135°)에 투영한 배풍 성분. 유지 시간 = 해당 전환부터 다음 전환까지 (마지막은 기간 마지막
-          전문까지). 사용 비율은 전문 수 기준이며 현재 활주로는 {rwyPrefix(d.current)} 계열입니다.
+          전환 = 직전 전문과 사용 활주로 방향(32/14)이 다른 전문 (통계 카드와 동일). 방향은 전문의 착륙 활주로(EXPECT … RWY32L APPROACH)로 정하고, 없으면 이륙 활주로(DEPARTURE RWY)를 씁니다. 직전 활주로 배풍 = 전환 시 바람을 직전
+          활주로 진방위(32: 315°, 14: 135°)에 투영한 배풍 성분. 유지 시간 = 해당 전환부터 다음 전환까지 (마지막은 기간 마지막 전문까지). 사용 비율은 전문 수 기준이며 현재 활주로는 {rwyPrefix(d.current)} 계열({d.currentConfig})입니다.
         </span>
       </Section>
     </>

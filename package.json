@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tiles": "node scripts/fetch-tiles.mjs",
-    "tiles:aerial": "node scripts/build-aerial-tiles.mjs"
+    "tiles:aerial": "node scripts/build-aerial-tiles.mjs",
+    "parse:check": "node scripts/check-parse.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

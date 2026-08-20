@@ -1,3 +1,4 @@
+import { isTsCb } from '../stats';
 import type { AtisRecord, TimeWindow } from '../types';
 import { autoUnit, bucketize, bucketValues, DAY, dayBuckets, fmtDate, fmtDay, fmtDayHM, fmtHM, hourCount, MIN, niceTicks, pct, runs, type Bucket, type Unit } from './agg';
 
@@ -5,7 +6,8 @@ import { autoUnit, bucketize, bucketValues, DAY, dayBuckets, fmtDate, fmtDay, fm
  * 시정 / 특이기상 상세 파생값
  * - 시정 저하 = vis < 10 KM (통계 카드 lowVisCount와 동일 정의)
  * - 등급: ≥10 / 5–<10 / 1–<5 / <1 KM
- * - TS = tags에 'TS', 안개 = tags에 FG 또는 BR
+ * - TS/CB = tags에 'TS' 또는 CB 구름층 (카드 tsCount와 동일, stats.isTsCb), 안개 = tags에 FG 또는 BR
+ * - CAVOK = 전문의 CAV-OK (r.cavok), RVR = 전문의 RVR 보고(활주로별 TDZ/MID/END)
  */
 
 /** 시정 저하 기준 (KM, 미만) */
@@ -32,7 +34,8 @@ export function fmtVis(v: number): string {
 }
 
 export const isLowVis = (r: AtisRecord) => r.vis < LOW_VIS_KM;
-export const isTS = (r: AtisRecord) => r.tags.includes('TS');
+/** TS 태그 또는 CB 구름 (카드와 동일 정의) */
+export const isTS = isTsCb;
 export const isFog = (r: AtisRecord) => r.tags.includes('FG') || r.tags.includes('BR');
 
 /** 저시정 연속 구간(이벤트) */
@@ -66,6 +69,23 @@ export interface TsReport {
   vis: number;
   cloud: string;
   tags: string[];
+  /** 현재 기상 원문 ("FBL TS RA") */
+  wxTxt: string;
+  /** CB 구름층 보고 여부 */
+  cb: boolean;
+}
+
+/** RVR 보고 전문 1건 (활주로별 TDZ/MID/END) */
+export interface RvrRow {
+  index: number;
+  ts: number;
+  letter: string;
+  vis: number;
+  wxTxt: string;
+  /** 활주로별 RVR — "32R" → { TDZ, MID, END } (없는 위치는 null) */
+  rwys: { rwy: string; tdz: number | null; mid: number | null; end: number | null }[];
+  /** 전문 내 최저 RVR (m) */
+  min: number;
 }
 
 export interface GradeBucket {
@@ -108,10 +128,20 @@ export interface VisDetail {
   /** 최장 저시정 구간 */
   longestRun: VisRun | null;
 
+  /** TS/CB 보고 전문 수 (TS 태그 또는 CB 구름) */
   tsCount: number;
   tsReports: TsReport[];
-  /** TS 연속 구간 (차트 밴드용, to = 구간 다음 전문 시각) */
+  /** TS/CB 연속 구간 (차트 밴드용, to = 구간 다음 전문 시각) */
   tsBands: { from: number; to: number }[];
+
+  /** CAVOK 전문 수 / 비율(%) */
+  cavokCount: number;
+  cavokPct: number;
+  /** RVR 보고 전문 수 */
+  rvrCount: number;
+  rvrRows: RvrRow[];
+  /** 기간 내 최저 RVR (m) — 보고 없으면 null */
+  minRvr: { m: number; rwy: string; pos: 'TDZ' | 'MID' | 'END'; index: number; ts: number } | null;
 
   under5Count: number;
   under1Count: number;
@@ -190,8 +220,31 @@ export function computeVisDetail(recs: AtisRecord[], win: TimeWindow): VisDetail
   let brCount = 0;
   let fogCount = 0;
   let tsCount = 0;
+  let cavokCount = 0;
+  let rvrCount = 0;
+  let minRvr: VisDetail['minRvr'] = null;
   const tsReports: TsReport[] = [];
+  const rvrRows: RvrRow[] = [];
   recs.forEach((r, i) => {
+    if (r.cavok) cavokCount++;
+    if (r.rvr.length) {
+      rvrCount++;
+      const byRwy = new Map<string, RvrRow['rwys'][number]>();
+      let mn = Infinity;
+      r.rvr.forEach((x) => {
+        let e = byRwy.get(x.rwy);
+        if (!e) {
+          e = { rwy: x.rwy, tdz: null, mid: null, end: null };
+          byRwy.set(x.rwy, e);
+        }
+        if (x.pos === 'TDZ') e.tdz = x.m;
+        else if (x.pos === 'MID') e.mid = x.m;
+        else e.end = x.m;
+        if (x.m < mn) mn = x.m;
+        if (!minRvr || x.m < minRvr.m) minRvr = { m: x.m, rwy: x.rwy, pos: x.pos, index: i, ts: r.ts };
+      });
+      rvrRows.push({ index: i, ts: r.ts, letter: r.letter, vis: r.vis, wxTxt: r.wxTxt, rwys: [...byRwy.values()], min: mn });
+    }
     if (r.vis < LOW_VIS_KM) lowCount++;
     if (r.vis < minVis) {
       minVis = r.vis;
@@ -204,9 +257,9 @@ export function computeVisDetail(recs: AtisRecord[], win: TimeWindow): VisDetail
     if (fg) fgCount++;
     if (br) brCount++;
     if (fg || br) fogCount++;
-    if (r.tags.includes('TS')) {
+    if (isTS(r)) {
       tsCount++;
-      tsReports.push({ index: i, ts: r.ts, letter: r.letter, wind: r.wind, spd: r.spd, vis: r.vis, cloud: r.cloud, tags: r.tags });
+      tsReports.push({ index: i, ts: r.ts, letter: r.letter, wind: r.wind, spd: r.spd, vis: r.vis, cloud: r.cloud, tags: r.tags, wxTxt: r.wxTxt, cb: r.clouds.some((c) => c.cb) });
     }
   });
   if (!Number.isFinite(minVis)) minVis = LOW_VIS_KM;
@@ -303,6 +356,11 @@ export function computeVisDetail(recs: AtisRecord[], win: TimeWindow): VisDetail
     tsCount,
     tsReports,
     tsBands,
+    cavokCount,
+    cavokPct: pct(cavokCount, total),
+    rvrCount,
+    rvrRows,
+    minRvr,
     under5Count,
     under1Count,
     fogCount,

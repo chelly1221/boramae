@@ -1,9 +1,11 @@
-import type { Approach, AtisRecord, TimeWindow } from '../types';
+import { appColor } from '../stats';
+import type { AtisRecord, TimeWindow } from '../types';
 import { autoUnit, bucketize, dayBuckets, daysIn, fmtDay, fmtHM, hourCount, MIN, runs, type Bucket, type Unit } from './agg';
 
 /*
  * 구름 / 접근방식 상세 파생값 — 실링 추이(자동 해상도), 운량 구성·접근방식 비율(일별/시간별), 시간대별 CAVOK 비율,
  * 저실링 이벤트 구간. 카드(stats.ts)와 정의 일치: CAVOK = cloud === 'CAVOK', BKN 이상 = ceil != null.
+ * 접근방식은 전문에 기재된 명칭(appName: "ILS" / "ILS Z" / …) 기준으로 기간 내 등장한 것만 동적으로 집계한다 (ILS는 항상 포함).
  */
 
 /** 저실링 판정 기준 (FT) — 이하가 아닌 미만 */
@@ -11,8 +13,18 @@ export const LOW_CEIL_FT = 1000;
 /** 매우 낮은 실링 (FT) — 차트 위험 임계선 */
 export const VERY_LOW_CEIL_FT = 500;
 
-export const APPROACHES: Approach[] = ['ILS', 'RNP', 'VOR'];
-export const APP_COLORS: Record<Approach, string> = { ILS: '#7f0d00', RNP: '#b4451c', VOR: '#8c7a6e' };
+/** 접근 명칭 목록 (건수 내림차순, ILS 항상 첫 번째) */
+export function appNamesOf(recs: AtisRecord[]): string[] {
+  const cnt = new Map<string, number>([['ILS', 0]]);
+  recs.forEach((r) => cnt.set(r.appName, (cnt.get(r.appName) ?? 0) + 1));
+  return [...cnt.entries()].sort((a, b) => (a[0] === 'ILS' ? -1 : b[0] === 'ILS' ? 1 : b[1] - a[1])).map(([k]) => k);
+}
+/** 접근 명칭별 색 (appNames 순서 기준) */
+export function appColorMap(appNames: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  appNames.forEach((n, i) => (out[n] = appColor(n, i)));
+  return out;
+}
 
 /** 운량 구성 범주 (cloud 코드 앞 3자 기준, 저실링은 실링 값 기준). CAVOK는 카드와 동일하게 cloud === 'CAVOK'만 (NSC/SKC 등은 NSC 범주) */
 export type CloudCat = 'CAVOK' | 'NSC' | 'FEW' | 'SCT' | 'BKN' | 'OVC' | 'LOW' | 'VV' | 'ETC';
@@ -63,9 +75,9 @@ export interface CloudTip {
   n: number;
   cavok: number;
   low: number;
-  /** raw 해상도에서만: 구름 코드·접근·시정 */
+  /** raw 해상도에서만: 구름 코드·접근 명칭·시정 */
   cloud?: string;
-  app?: Approach;
+  app?: string;
   visTxt?: string;
 }
 
@@ -76,8 +88,8 @@ export interface CompBar {
   n: number;
   /** 범주별 건수 */
   cats: Record<CloudCat, number>;
-  /** 접근방식별 건수 */
-  apps: Record<Approach, number>;
+  /** 접근 명칭별 건수 (appNames 키) */
+  apps: Record<string, number>;
   /** 첫 레코드 인덱스 (없으면 null) */
   index: number | null;
 }
@@ -92,11 +104,11 @@ export interface LowCeilEvent {
   /** 구간 최저 실링 (FT) 및 그 레코드 인덱스 */
   minCeil: number;
   minIndex: number;
-  /** 최저 실링 당시 구름 코드·시정·접근 */
+  /** 최저 실링 당시 구름 코드·시정·접근 명칭 */
   cloud: string;
   visTxt: string;
   vis: number;
-  app: Approach;
+  app: string;
 }
 
 export interface CloudDetail {
@@ -127,9 +139,15 @@ export interface CloudDetail {
   lowDurMs: number;
   /** 저실링 구간 밴드 (차트 x 구간) */
   lowBands: { from: number; to: number }[];
-  appCount: Record<Approach, number>;
-  appPct: Record<Approach, number>;
-  topApp: Approach;
+  /** 기간 내 등장한 접근 명칭 (건수 내림차순, ILS 첫 번째) */
+  appNames: string[];
+  appColors: Record<string, string>;
+  appCount: Record<string, number>;
+  appPct: Record<string, number>;
+  topApp: string;
+  /** CB 구름층 보고 전문 수 / VV(수직시정·차폐) 전문 수 */
+  cbCount: number;
+  vvCount: number;
   /** 운량 구성·접근방식 막대 (2일 이하 창은 1시간, 그 외 1일) */
   compUnit: 'hour' | 'day';
   comp: CompBar[];
@@ -145,14 +163,18 @@ export interface CloudDetail {
   hourLow: number[];
   /** 구름 코드별 건수 (내림차순, 최대 10) — index는 마지막 발생 레코드 */
   codeFreq: { code: string; cat: CloudCat; n: number; pct: number; index: number }[];
-  last: { cloud: string; ceil: number | null; app: Approach; ts: number } | null;
+  last: { cloud: string; ceil: number | null; app: string; ts: number } | null;
 }
 
 const emptyCats = (): Record<CloudCat, number> => ({ CAVOK: 0, NSC: 0, FEW: 0, SCT: 0, BKN: 0, OVC: 0, LOW: 0, VV: 0, ETC: 0 });
-const emptyApps = (): Record<Approach, number> => ({ ILS: 0, RNP: 0, VOR: 0 });
+const isCb = (r: AtisRecord) => r.clouds.some((c) => c.cb);
+const isVv = (r: AtisRecord) => r.vv != null || r.cloud.startsWith('VV');
 
 export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDetail {
   const n = recs.length;
+  const appNames = appNamesOf(recs);
+  const appColors = appColorMap(appNames);
+  const emptyApps = (): Record<string, number> => Object.fromEntries(appNames.map((a) => [a, 0]));
   const unit = autoUnit(recs, win);
   const buckets = bucketize(recs, unit, win);
   const xs = buckets.map((b) => b.ts);
@@ -177,7 +199,7 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     const tip: CloudTip = { ceil: mn, index: mnIdx ?? b.idx[0] ?? null, n: b.recs.length, cavok, low };
     if (unit === 'raw' && b.recs[0]) {
       tip.cloud = b.recs[0].cloud;
-      tip.app = b.recs[0].app;
+      tip.app = b.recs[0].appName;
       tip.visTxt = b.recs[0].visTxt;
     }
     tips.push(tip);
@@ -193,6 +215,8 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
   let minCeil: number | null = null;
   let maxCeil: number | null = null;
   let minCeilIndex: number | null = null;
+  let cbCount = 0;
+  let vvCount = 0;
   const appCount = emptyApps();
   const catCount = emptyCats();
   const codeMap = new Map<string, { n: number; index: number; cat: CloudCat }>();
@@ -208,7 +232,9 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     }
     if (isCavok(r)) cavokCount++;
     if (isLowCeil(r)) lowCount++;
-    if (r.app in appCount) appCount[r.app]++;
+    if (isCb(r)) cbCount++;
+    if (isVv(r)) vvCount++;
+    appCount[r.appName] = (appCount[r.appName] ?? 0) + 1;
     const cat = cloudCat(r);
     catCount[cat]++;
     const code = r.cloud.trim() || '—';
@@ -219,8 +245,8 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     } else codeMap.set(code, { n: 1, index: i, cat });
   });
   const pctOf = (k: number) => (n ? Math.round((k / n) * 100) : 0);
-  const appPct: Record<Approach, number> = { ILS: pctOf(appCount.ILS), RNP: pctOf(appCount.RNP), VOR: pctOf(appCount.VOR) };
-  const topApp = APPROACHES.reduce<Approach>((a, b) => (appCount[b] > appCount[a] ? b : a), 'ILS');
+  const appPct: Record<string, number> = Object.fromEntries(appNames.map((a) => [a, pctOf(appCount[a])]));
+  const topApp = appNames.reduce((a, b) => (appCount[b] > appCount[a] ? b : a), 'ILS');
 
   // 저실링 이벤트 구간
   const lowEvents: LowCeilEvent[] = runs(recs, isLowCeil).map((run) => {
@@ -239,7 +265,7 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
       cloud: r.cloud,
       visTxt: r.visTxt,
       vis: r.vis,
-      app: r.app,
+      app: r.appName,
     };
   });
   const lowDurMs = lowEvents.reduce((a, e) => a + e.durMs, 0);
@@ -254,7 +280,7 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     const apps = emptyApps();
     b.recs.forEach((r) => {
       cats[cloudCat(r)]++;
-      if (r.app in apps) apps[r.app]++;
+      apps[r.appName] = (apps[r.appName] ?? 0) + 1;
     });
     const label = compUnit === 'hour' ? fmtHM(b.ts) : fmtDay(b.ts);
     const title = compUnit === 'hour' ? `${fmtDay(b.ts)} ${fmtHM(b.ts)}` : fmtDay(b.ts);
@@ -298,9 +324,13 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     lowEvents,
     lowDurMs,
     lowBands,
+    appNames,
+    appColors,
     appCount,
     appPct,
     topApp,
+    cbCount,
+    vvCount,
     compUnit,
     comp,
     compMax,
@@ -311,6 +341,6 @@ export function computeCloudDetail(recs: AtisRecord[], win: TimeWindow): CloudDe
     hourCavok,
     hourLow,
     codeFreq,
-    last: lastR ? { cloud: lastR.cloud, ceil: lastR.ceil, app: lastR.app, ts: lastR.ts } : null,
+    last: lastR ? { cloud: lastR.cloud, ceil: lastR.ceil, app: lastR.appName, ts: lastR.ts } : null,
   };
 }

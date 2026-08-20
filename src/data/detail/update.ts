@@ -3,22 +3,22 @@ import { bucketize, DAY, fmtDay, fmtHM, HOUR, median, MIN, type Bucket, type Uni
 
 /*
  * 정보문자 갱신 빈도 상세 파생값
- * - 정기 발행 = 발행 분이 :00/:30인 전문, 임시 갱신 = 그 외(:15/:45 등)
- * - 발행 간격 = 연속 전문의 발행 시각 차 (첫 전문은 간격 없음)
+ * - 정기 발행 = 발행 분이 :00(매시 정각)인 전문, 임시 갱신 = 그 외 (RKSS ATIS는 매시 정각 정기 발행, 상태 변화 시 임시 갱신)
+ * - 발행 간격 = 연속 전문의 발행 시각 차 (첫 전문은 간격 없음), 정상 간격 ≈ 60분
  * - 시간대별 일평균 = 시간대 건수 / 일수 (일수 = 첫~마지막 전문 시각 차, 최소 1일 — 통계 카드와 동일)
  */
 
-/** 공백 판정 기준 (분) — 발행 간격이 이 값 이상이면 공백 이벤트 */
-export const GAP_MIN = 60;
+/** 공백 판정 기준 (분) — 발행 간격이 이 값 이상이면 공백 이벤트 (정기 발행 1회 이상 누락) */
+export const GAP_MIN = 120;
 /** 정기 발행 기대 횟수 (회/시) — 카드의 UPD_REGULAR_PER_HOUR와 동일 */
-export const REGULAR_PER_HOUR = 2;
+export const REGULAR_PER_HOUR = 1;
 /** 임시 갱신 판정에 쓰는 바람 변화 기준 (풍향 °, 풍속 KT) */
 export const WIND_DIR_STEP = 30;
 export const WIND_SPD_STEP = 5;
 
-/** 정기 발행(:00/:30) 여부 — 분 단위로 판정 (초 단위 시각이 섞여도 동작) */
+/** 정기 발행(:00 정각) 여부 — 분 단위로 판정 (초 단위 시각이 섞여도 동작) */
 export function isRegular(ts: number): boolean {
-  return Math.floor(ts / MIN) % 30 === 0;
+  return Math.floor(ts / MIN) % 60 === 0;
 }
 
 export interface UpdateBucketItem {
@@ -114,16 +114,26 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 /** "08-15 12Z" */
 const fmtDayH = (ts: number) => `${fmtDay(ts)} ${pad2(new Date(ts).getUTCHours())}Z`;
 
+/** 활주로 배치 라벨 — "ARR 32L·DEP 32R" */
+const cfg = (r: AtisRecord) => `ARR ${r.arrRwy ?? '—'}·DEP ${r.depRwy ?? '—'}`;
+
 /** 두 전문의 차이 요약 (임시 갱신 사유 추정) */
 export function describeChange(prev: AtisRecord | undefined, cur: AtisRecord): string[] {
   if (!prev) return ['기간 첫 전문'];
   const out: string[] = [];
-  if (prev.rwy !== cur.rwy) out.push(`활주로 ${prev.rwy} → ${cur.rwy}`);
+  if (prev.arrRwy !== cur.arrRwy || prev.depRwy !== cur.depRwy) out.push(`활주로 ${cfg(prev)} → ${cfg(cur)}`);
   if (prev.cloud !== cur.cloud) out.push(`구름 ${prev.cloud} → ${cur.cloud}`);
-  const added = cur.tags.filter((t) => !prev.tags.includes(t));
-  const removed = prev.tags.filter((t) => !cur.tags.includes(t));
-  if (added.length || removed.length) out.push(`태그 ${[...added.map((t) => '+' + t), ...removed.map((t) => '−' + t)].join(' ')}`);
+  if (prev.wxTxt !== cur.wxTxt) out.push(`기상 ${prev.wxTxt || '없음'} → ${cur.wxTxt || '없음'}`);
   if (prev.visTxt !== cur.visTxt) out.push(`시정 ${prev.visTxt} → ${cur.visTxt}`);
+  if (prev.rwyCond.length !== cur.rwyCond.length || prev.rwyCond.some((c, i) => JSON.stringify(c) !== JSON.stringify(cur.rwyCond[i]))) {
+    out.push(cur.rwyCond.length ? (prev.rwyCond.length ? '활주로 상태 보고 변경' : '활주로 상태 보고 추가') : '활주로 상태 보고 해제');
+  }
+  const pk = new Set(prev.notices.map((n) => n.kind));
+  const ck = new Set(cur.notices.map((n) => n.kind));
+  const nAdded = [...ck].filter((k) => !pk.has(k));
+  const nRemoved = [...pk].filter((k) => !ck.has(k));
+  if (nAdded.length || nRemoved.length) out.push(`공지 ${[...nAdded.map((k) => '+' + k), ...nRemoved.map((k) => '−' + k)].join(' ')}`);
+  else if (prev.notices.length && cur.notices.length && prev.notices.map((n) => n.text).join('|') !== cur.notices.map((n) => n.text).join('|')) out.push('공지 내용 변경');
   const dd = Math.abs(((prev.dir - cur.dir + 540) % 360) - 180);
   const ds = Math.abs(prev.spd - cur.spd);
   const windChanged = prev.wind !== cur.wind;
@@ -162,17 +172,17 @@ export function computeUpdateDetail(recs: AtisRecord[], win: TimeWindow): Update
   const meanInterval = intervals.length ? spanMs / MIN / intervals.length : NaN;
   const medianInterval = intervals.length ? median(intervals) : NaN;
 
-  // 간격 히스토그램 — 마지막 구간은 공백 판정(≥ GAP_MIN)과 같은 경계
+  // 간격 히스토그램 — 정상 간격 60분, 마지막 구간은 공백 판정(≥ GAP_MIN)과 같은 경계
   const intervalBins: IntervalBin[] = [
     { label: '≤15', title: '15분 이하', gap: false, count: 0 },
     { label: '15–30', title: '15분 초과 30분 이하', gap: false, count: 0 },
-    { label: '30–45', title: '30분 초과 45분 이하', gap: false, count: 0 },
-    { label: `45–${GAP_MIN}`, title: `45분 초과 ${GAP_MIN}분 미만`, gap: false, count: 0 },
+    { label: '30–60', title: '30분 초과 60분 이하 (정기 간격)', gap: false, count: 0 },
+    { label: `60–${GAP_MIN}`, title: `60분 초과 ${GAP_MIN}분 미만`, gap: false, count: 0 },
     { label: `≥${GAP_MIN}`, title: `${GAP_MIN}분 이상 (공백)`, gap: true, count: 0 },
   ];
   const EPS = 1e-9;
   for (const m of intervals) {
-    const bi = m <= 15 + EPS ? 0 : m <= 30 + EPS ? 1 : m <= 45 + EPS ? 2 : m < GAP_MIN - EPS ? 3 : 4;
+    const bi = m <= 15 + EPS ? 0 : m <= 30 + EPS ? 1 : m <= 60 + EPS ? 2 : m < GAP_MIN - EPS ? 3 : 4;
     intervalBins[bi].count++;
   }
 

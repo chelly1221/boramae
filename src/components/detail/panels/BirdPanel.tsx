@@ -233,7 +233,7 @@ export function BirdPanel({ recs, win, onOpenRaw }: PanelProps) {
         <DetailTable columns={evCols} rows={d.events} rowKey={(r) => r.start} onRowClick={(r) => onOpenRaw(r.start)} emptyText="기간 내 조류 활동 구간이 없습니다." />
         <span className="dsection__note">
           정의: 조류 보고 전문은 remarks에 BIRD ACTIVITY 보고(HVY/LGT FLOCK · 거리 NM · ARP 기준 8방위)가 있는 전문이며, 무리 건수는 전문 1건 × 보고 무리 1건으로 셉니다(통계 카드와 동일). 활동 구간은 보고가
-          연속 전문에서 이어지는 범위(수신 공백 {BIRD_RUN_GAP_MS / 3600000}시간 초과 시 분리)이고, 지속 시간은 시작·종료 전문의 시각 차입니다(정기 발행 간격 30분 단위 근사). HVY = 큰 무리, LGT = 작은 무리.
+          연속 전문에서 이어지는 범위(수신 공백 {BIRD_RUN_GAP_MS / 3600000}시간 초과 시 분리)이고, 지속 시간은 시작·종료 전문의 시각 차입니다(정기 발행 간격 1시간 단위 근사). HVY = 큰 무리, LGT = 작은 무리.
         </span>
       </Section>
     </>

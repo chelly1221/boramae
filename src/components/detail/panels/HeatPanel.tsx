@@ -200,7 +200,7 @@ export function HeatPanel({ recs, win, onOpenRaw }: PanelProps) {
           </div>
         </div>
         <span className="dsection__note">
-          셀 = UTC 1시간. 시정 저하 = 시정 10KM 미만(강수 제외), 강수 = RA·SN 태그, 활주로 전환 = 직전 전문과 사용 활주로가 다름 — 통계 카드와 같은 정의. 복합 이벤트 셀은 50/50 분할 색, 옅은 회색은 이벤트 없음(더 옅은
+          셀 = UTC 1시간. 시정 저하 = 시정 10KM 미만(강수 제외), 강수 = 강수 계열 현상 코드(RA·SN·DZ·GR·GS·PL·SG·UP), 활주로 전환 = 직전 전문과 사용 활주로 방향(32/14)이 다름 — 통계 카드와 같은 정의. 복합 이벤트 셀은 50/50 분할 색, 옅은 회색은 이벤트 없음(더 옅은
           회색은 기간 외).
           {fogNote}
         </span>

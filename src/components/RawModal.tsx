@@ -24,7 +24,20 @@ export function RawModal({ rec, pos, total, onPrev, onNext, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onPrev, onNext, onClose]);
 
-  const chips = [`WIND ${rec.wind}`, `VIS ${rec.visTxt}`, rec.cloud, `T${rec.t}° / DP${rec.dp}°`, `QNH ${rec.qnh}`, `RWY ${rec.rwy}`, `${rec.app} APCH`];
+  const chips = [
+    `WIND ${rec.wind}${rec.varFrom != null ? ` V${String(rec.varFrom).padStart(3, '0')}-${String(rec.varTo).padStart(3, '0')}` : ''}`,
+    `VIS ${rec.visTxt}`,
+    ...(rec.wxTxt ? [rec.wxTxt] : []),
+    ...(rec.rvr.length ? [`RVR ${rec.rvr.map((x) => `${x.pos}${x.m}`).join(' ')}`] : []),
+    rec.cloud,
+    `T${rec.t}° / DP${rec.dp}°`,
+    `QNH ${rec.qnh}`,
+    `ARR ${rec.arrRwy ?? '—'} · DEP ${rec.depRwy ?? '—'}`,
+    `${rec.appName} APCH`,
+    ...(rec.trend ? [`TREND ${rec.trend}`] : []),
+    ...(rec.rwyCond.length ? ['RWY 상태 보고'] : []),
+    ...rec.notices.filter((n) => n.kind !== 'BIRDS' && n.kind !== 'GPS').map((n) => n.kind),
+  ];
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -34,7 +47,7 @@ export function RawModal({ rec, pos, total, onPrev, onNext, onClose }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span className="modal__title">원문 전문 · INFO {rec.letter}</span>
             <span className="modal__sub">
-              {rec.time} · {pos} / {total}
+              {rec.time} · {pos} / {total} · {rec.file}
             </span>
           </div>
           <div className="modal__spacer" />

@@ -2,8 +2,10 @@ import type { DetailKey } from '../../../data/types';
 import { BirdPanel } from './BirdPanel';
 import { CloudPanel } from './CloudPanel';
 import { HeatPanel } from './HeatPanel';
+import { NoticePanel } from './NoticePanel';
 import { QnhPanel } from './QnhPanel';
 import { RunwayPanel } from './RunwayPanel';
+import { RwycondPanel } from './RwycondPanel';
 import { TagsPanel } from './TagsPanel';
 import { TempPanel } from './TempPanel';
 import type { PanelDef } from './types';
@@ -24,6 +26,8 @@ export const PANELS: Record<DetailKey, PanelDef> = {
   qnh: { key: 'qnh', title: 'QNH', sub: '해면기압 추이 · 변화율', Component: QnhPanel },
   vis: { key: 'vis', title: '시정 / 특이기상', sub: '시정 추이 · 저시정 이벤트 · TS', Component: VisPanel },
   tags: { key: 'tags', title: '기상현상 태그', sub: '태그 빈도 · 시간대 분포', Component: TagsPanel },
+  rwycond: { key: 'rwycond', title: '활주로 표면 상태', sub: 'RWYCC · 오염 상태 · 제동작용 보고', Component: RwycondPanel },
+  notice: { key: 'notice', title: '운영 공지', sub: 'GPS·흐름관리·윈드시어 등 remarks 빈도', Component: NoticePanel },
   bird: { key: 'bird', title: '조류 활동', sub: '보고 추이 · 방위/거리/시간대 분포 · 활동 구간', Component: BirdPanel },
 };
 

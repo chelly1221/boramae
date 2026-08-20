@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { areaPts, BIRD_COLOR, type Stats } from '../data/stats';
+import { areaPts, BIRD_COLOR, BRAKING_LABEL, rwyccColor, type Stats } from '../data/stats';
 import type { DetailKey, HeatRow } from '../data/types';
 import { IconChevronRight } from './icons';
 
@@ -152,6 +152,8 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
               <span className="rose-legend__dom">
                 주풍 {s.domDir} · {s.domPct}%
               </span>
+              <span className="rose-legend__item">CALM/VRB {s.calmVrbPct}%</span>
+              {s.gustMax != null && <span className="rose-legend__item">최대 돌풍 {s.gustMax}KT</span>}
             </div>
           </div>
         </LinkCard>
@@ -192,20 +194,23 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
             <span className="card__title">활주로 사용 비율</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="hbar">
-                <span className="hbar__label">32L/32R</span>
+                <span className="hbar__label">32 방향</span>
                 <div className="hbar__track">
                   <div className="hbar__fill" style={{ background: '#7f0d00', width: `${s.p32}%` }} />
                 </div>
                 <span className="hbar__pct">{s.p32}%</span>
               </div>
               <div className="hbar">
-                <span className="hbar__label">14L/14R</span>
+                <span className="hbar__label">14 방향</span>
                 <div className="hbar__track">
                   <div className="hbar__fill" style={{ background: '#8c7a6e', width: `${s.p14}%` }} />
                 </div>
                 <span className="hbar__pct">{s.p14}%</span>
               </div>
             </div>
+            <span className="card__note">
+              현재 ARR {s.arrRwy} · DEP {s.depRwy}
+            </span>
           </LinkCard>
           <LinkCard detail="runway" onOpen={onOpenDetail}>
             <span className="card__title">활주로 전환 이벤트</span>
@@ -283,7 +288,7 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
             </div>
           </div>
         </div>
-        <span className="card__note">03–06시 구간에 시정 저하가 반복 — 새벽 안개 패턴</span>
+        <span className="card__note">셀 = UTC 1시간 · 복합 이벤트는 반반 표시 · 셀 클릭 → 해당 시간대 첫 전문</span>
       </LinkCard>
 
       <div className="grid-2">
@@ -329,7 +334,9 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
           <div className="divider-top" style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {s.appBars.map((a) => (
               <div key={a.name} className="hbar hbar--sm">
-                <span className="hbar__label">{a.name}</span>
+                <span className="hbar__label" style={{ width: 'auto', minWidth: 34, whiteSpace: 'nowrap' }}>
+                  {a.name}
+                </span>
                 <div className="hbar__track">
                   <div className="hbar__fill" style={{ background: a.fill, width: `${a.pct}%` }} />
                 </div>
@@ -372,7 +379,60 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
             <Stat lg label="시정 저하" value={`${s.lowVisCount}건`} />
             <Stat lg label="최저 시정" value={s.minVis >= 1 ? `${s.minVis}KM` : `${Math.round(s.minVis * 1000)}M`} />
             <Stat lg label="TS/CB 보고" value={`${s.tsCount}건`} color="#b8770a" />
+            <Stat lg label="RVR 보고" value={`${s.rvrCount}건`} />
           </div>
+        </LinkCard>
+      </div>
+
+      <div className="grid-2">
+        {/* 활주로 표면 상태 */}
+        <LinkCard detail="rwycond" onOpen={onOpenDetail}>
+          <span className="card__title">
+            활주로 표면 상태 <small>· RWYCC · 제동작용 보고</small>
+          </span>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <Stat lg label="상태 보고 전문" value={`${s.rwyCond.n}건`} />
+            <Stat lg label="전문 대비" value={`${s.rwyCond.pct}%`} />
+            <Stat lg label="최저 RWYCC" value={s.rwyCond.minCode != null ? String(s.rwyCond.minCode) : '—'} color={s.rwyCond.minCode != null ? rwyccColor(s.rwyCond.minCode) : undefined} />
+            <Stat lg label="제동작용 보고" value={`${s.rwyCond.brakingN}건`} color={s.rwyCond.worstBraking ? '#b4451c' : undefined} />
+          </div>
+          <span className="card__note">
+            {s.rwyCond.last ? (
+              <>
+                마지막 보고 <b>{s.rwyCond.last.summary}</b> · {s.rwyCond.last.time}
+                {s.rwyCond.minCodeTxt ? ` · 최저 ${s.rwyCond.minCodeTxt}` : ''}
+                {s.rwyCond.worstBraking ? ` · 최악 제동 ${s.rwyCond.worstBraking}${BRAKING_LABEL[s.rwyCond.worstBraking] ? ` (${BRAKING_LABEL[s.rwyCond.worstBraking]})` : ''}` : ''}
+              </>
+            ) : (
+              '기간 내 상태 보고 없음'
+            )}
+          </span>
+        </LinkCard>
+
+        {/* 운영 공지 */}
+        <LinkCard detail="notice" onOpen={onOpenDetail}>
+          <span className="card__title">
+            운영 공지 <small>· remarks 종류별 전문 수</small>
+          </span>
+          <div className="tags">
+            {s.notice.chips.length ? (
+              s.notice.chips.map((c) => (
+                <div key={c.kind} className="tag" title={`${c.label} · 전문의 ${c.pct}%`}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: c.color, flexShrink: 0 }} />
+                  <span className="tag__desc" style={{ color: 'var(--ink-body)', fontWeight: 600 }}>
+                    {c.label}
+                  </span>
+                  <span className="tag__n">{c.n.toLocaleString()}</span>
+                </div>
+              ))
+            ) : (
+              <span className="card__note">기간 내 운영 공지 없음</span>
+            )}
+          </div>
+          <span className="card__note">
+            현재 유효: {s.notice.current.length ? s.notice.current.map((k) => s.notice.chips.find((c) => c.kind === k)?.label ?? k).join(' · ') : '없음'}
+            {s.notice.flowMaxMin != null ? ` · 흐름관리 최대 지연 ${s.notice.flowMaxMin}분` : ''}
+          </span>
         </LinkCard>
       </div>
 
@@ -380,7 +440,7 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
         {/* 기상 태그 */}
         <LinkCard detail="tags" onOpen={onOpenDetail}>
           <span className="card__title">
-            기상현상 태그 빈도 <small>· 전문 remarks 토큰</small>
+            기상현상 태그 빈도 <small>· 전문 현재기상 코드</small>
           </span>
           <div className="tags">
             {s.tagChips.length ? (
@@ -395,6 +455,7 @@ export function StatsView({ stats: s, heatRows, xwLimit, onOpenRaw, onOpenHeatRa
               <span className="card__note">기간 내 특이기상 태그 없음</span>
             )}
           </div>
+          <span className="card__note">TREND 변화 예보 {s.trendChangeN}건 (BECMG/TEMPO)</span>
         </LinkCard>
 
         {/* 조류 활동 */}

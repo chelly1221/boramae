@@ -15,6 +15,12 @@ interface Props {
   onToggleAerial: () => void;
   onExportCsv: () => void;
   onRefresh: () => void;
+  /** 폴더 재적재 중 */
+  loading?: boolean;
+  /** 지도 뷰: 사용자 지정 기간이 적용 중 (24h/7d/30d 세그먼트 대신 '기간 지정' 강조) */
+  mapCustomPeriod?: boolean;
+  /** 지도 뷰: 기간 지정 패널 토글 */
+  onMapPeriod?: () => void;
 }
 
 const TITLES: Record<View, string> = { stats: '분석', map: '지도', import: '설정' };
@@ -24,7 +30,7 @@ const RANGES: { key: Range; label: string }[] = [
   { key: '30d', label: '30일' },
 ];
 
-export function Toolbar({ view, range, onRange, detailTitle, detailSub, onBack, windViz, onToggleWindViz, aerial, onToggleAerial, onExportCsv, onRefresh }: Props) {
+export function Toolbar({ view, range, onRange, detailTitle, detailSub, onBack, windViz, onToggleWindViz, aerial, onToggleAerial, onExportCsv, onRefresh, loading, mapCustomPeriod, onMapPeriod }: Props) {
   const inDetail = detailTitle != null;
   return (
     // 툴바는 창 드래그 영역(더블클릭 → 최대화 토글). 컨트롤 묶음만 드래그에서 제외.
@@ -69,10 +75,15 @@ export function Toolbar({ view, range, onRange, detailTitle, detailSub, onBack, 
         {!inDetail && (
           <div className="segment">
             {RANGES.map(({ key, label }) => (
-              <div key={key} className={`segment__item${range === key ? ' segment__item--active' : ''}`} onClick={() => onRange(key)}>
+              <div key={key} className={`segment__item${range === key && !mapCustomPeriod ? ' segment__item--active' : ''}`} onClick={() => onRange(key)}>
                 {label}
               </div>
             ))}
+            {view === 'map' && onMapPeriod && (
+              <div className={`segment__item${mapCustomPeriod ? ' segment__item--active' : ''}`} onClick={onMapPeriod} title="시작·종료 시각을 직접 지정">
+                기간 지정
+              </div>
+            )}
           </div>
         )}
 
@@ -80,7 +91,7 @@ export function Toolbar({ view, range, onRange, detailTitle, detailSub, onBack, 
           <IconDownload />
           <span>CSV</span>
         </div>
-        <div className="btn btn--icon" onClick={onRefresh} title="새로고침">
+        <div className={`btn btn--icon${loading ? ' btn--busy' : ''}`} onClick={onRefresh} title="폴더 다시 읽기">
           <IconRefresh />
         </div>
       </div>

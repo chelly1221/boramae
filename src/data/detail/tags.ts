@@ -1,15 +1,43 @@
-import type { AtisRecord, TimeWindow } from '../types';
+import type { AtisRecord, TimeWindow, WxGroup } from '../types';
 import { TAG_DESC } from '../stats';
 import { bucketize, DAY, dayBuckets, fmtDate, fmtDay, fmtDT, fmtHM, HOUR, niceTicks, pct, runs, type Bucket } from './agg';
 
 /*
  * 기상현상 태그 상세 파생값 — 태그별 건수/칩, 해상도별(1시간·1일) 태그 누적 건수, UTC 시간대 분포,
- * 태그 × 시간대 그리드, 태그별 요약(첫/마지막 발생·최장 연속 구간), 태그 이벤트 구간 목록.
- * 태그 건수 정의는 통계 카드(stats.ts tagChips)와 동일: 전문 1건에 태그 1개 = 1건.
+ * 태그 × 시간대 그리드, 태그별 요약(첫/마지막 발생·최장 연속 구간·강도 분포), 태그 이벤트 구간 목록,
+ * TREND(BECMG/TEMPO) 전문 목록과 최근기상(RE) 건수.
+ * 태그 = 전문 "WITH FBL TS RA BR" 의 2글자 현상·기술자 코드(강도 제외, 중복 제거). 태그 건수 정의는 통계 카드(stats.ts tagChips)와 동일: 전문 1건에 태그 1개 = 1건.
+ * 강도(FBL/MOD/HVY)는 r.wx 묶음에서 세며, 한 전문에 같은 코드가 여러 묶음에 있으면 가장 센 강도로 센다.
  */
 
 /** 태그별 색 (알려진 태그 외에는 중립색) */
-export const TAG_COLORS: Record<string, string> = { BR: '#c8871c', FG: '#9a6a12', HZ: '#d9b83a', RA: '#6b8cae', SN: '#5b8bc9', TS: '#c8422e' };
+export const TAG_COLORS: Record<string, string> = {
+  BR: '#c8871c',
+  FG: '#9a6a12',
+  HZ: '#d9b83a',
+  FU: '#a08a6a',
+  DU: '#b89a5a',
+  SA: '#c9a96a',
+  RA: '#6b8cae',
+  DZ: '#8fa8c4',
+  SN: '#5b8bc9',
+  PL: '#7ea0d8',
+  GR: '#4a6a8f',
+  TS: '#c8422e',
+  SH: '#4aa88c',
+  PR: '#b8770a',
+  MI: '#d4a24e',
+  BC: '#caa35c',
+  FZ: '#7b6bb3',
+  BL: '#9a8cc9',
+  DR: '#b0a4d6',
+  SS: '#9c7a4a',
+  DS: '#8a6a3a',
+  SQ: '#e08a35',
+};
+/** 강도 라벨 (WxGroup.intensity) */
+export const INTENSITY_LABEL: Record<WxGroup['intensity'], string> = { '-': 'FBL', '': 'MOD', '+': 'HVY' };
+const INTENSITY_RANK: Record<WxGroup['intensity'], number> = { '-': 0, '': 1, '+': 2 };
 export const TAG_OTHER_COLOR = '#8c7a6e';
 export const tagColor = (tag: string) => TAG_COLORS[tag] ?? TAG_OTHER_COLOR;
 export const tagDesc = (tag: string) => TAG_DESC[tag] ?? '기타';
@@ -40,6 +68,19 @@ export interface TagSummary extends TagChip {
   runCount: number;
   /** 최장 연속 구간 (없으면 null) */
   longest: TagRun | null;
+  /** 강도별 전문 수 [FBL, MOD, HVY] (전문 1건당 가장 센 강도 1회) */
+  intensity: [number, number, number];
+}
+
+/** TREND 변화 예보(BECMG/TEMPO) 전문 */
+export interface TrendItem {
+  index: number;
+  ts: number;
+  letter: string;
+  trend: 'BECMG' | 'TEMPO';
+  trendTxt: string;
+  visTxt: string;
+  wxTxt: string;
 }
 
 export interface TagRun {
@@ -109,6 +150,16 @@ export interface TagsDetail {
   /** 태그 이벤트 구간 (시작 시각 오름차순) */
   events: TagRun[];
   longestRun: TagRun | null;
+  /** TREND 변화 예보 */
+  becmgN: number;
+  tempoN: number;
+  /** TREND 없는 전문 수 */
+  trendNullN: number;
+  trendItems: TrendItem[];
+  /** 최근기상(RE …) 보고 전문 수 */
+  recentN: number;
+  /** 최근기상 코드별 건수 */
+  recentCodes: { code: string; n: number }[];
 }
 
 /** 건수 막대 y축 상한 — 정수 눈금이 나오고, 최상단 눈금이 축 단위 표기와 겹치지 않을 만큼 여유(≥6%)를 둔다 */
@@ -158,15 +209,31 @@ export function computeTagsDetail(recs: AtisRecord[], win: TimeWindow): TagsDeta
   chips.forEach((c, i) => chipIdx.set(c.tag, i));
   const K = chips.length;
 
-  // TS
+  // TS · TREND · 최근기상
   let tsCount = 0;
   let tsLastTs: number | null = null;
-  recs.forEach((r) => {
+  let becmgN = 0;
+  let tempoN = 0;
+  let trendNullN = 0;
+  let recentN = 0;
+  const recentCnt = new Map<string, number>();
+  const trendItems: TrendItem[] = [];
+  recs.forEach((r, i) => {
     if (r.tags.includes('TS')) {
       tsCount++;
       tsLastTs = r.ts;
     }
+    if (r.trend === 'BECMG' || r.trend === 'TEMPO') {
+      if (r.trend === 'BECMG') becmgN++;
+      else tempoN++;
+      trendItems.push({ index: i, ts: r.ts, letter: r.letter, trend: r.trend, trendTxt: r.trendTxt, visTxt: r.visTxt, wxTxt: r.wxTxt });
+    } else if (!r.trend) trendNullN++;
+    if (r.recent.length) {
+      recentN++;
+      r.recent.forEach((c) => recentCnt.set(c, (recentCnt.get(c) ?? 0) + 1));
+    }
   });
+  const recentCodes = [...recentCnt.entries()].map(([code, c]) => ({ code, n: c })).sort((a, b) => b.n - a.n);
 
   // 최다 일
   let topDay: TagsDetail['topDay'] = null;
@@ -259,6 +326,18 @@ export function computeTagsDetail(recs: AtisRecord[], win: TimeWindow): TagsDeta
   });
   const fog = { total: fogTotal, night: fogNight, pattern: fogTotal >= 4 && fogNight / fogTotal >= 0.5 };
 
+  // 강도 분포 — 전문 1건당 코드별 가장 센 강도
+  const intensityOf = new Map<string, [number, number, number]>();
+  chips.forEach((c) => intensityOf.set(c.tag, [0, 0, 0]));
+  recs.forEach((r) => {
+    const best = new Map<string, number>();
+    r.wx.forEach((g) => g.codes.forEach((code) => best.set(code, Math.max(best.get(code) ?? -1, INTENSITY_RANK[g.intensity]))));
+    best.forEach((rank, code) => {
+      const arr = intensityOf.get(code);
+      if (arr) arr[rank]++;
+    });
+  });
+
   // 태그별 요약 + 이벤트 구간
   const events: TagRun[] = [];
   let longestRun: TagRun | null = null;
@@ -289,6 +368,7 @@ export function computeTagsDetail(recs: AtisRecord[], win: TimeWindow): TagsDeta
       lastTs: last ? last.endTs : 0,
       runCount: rs.length,
       longest,
+      intensity: intensityOf.get(c.tag) ?? [0, 0, 0],
     };
   });
   events.sort((a, b) => a.startTs - b.startTs || a.start - b.start);
@@ -318,5 +398,11 @@ export function computeTagsDetail(recs: AtisRecord[], win: TimeWindow): TagsDeta
     summaries,
     events,
     longestRun,
+    becmgN,
+    tempoN,
+    trendNullN,
+    trendItems,
+    recentN,
+    recentCodes,
   };
 }

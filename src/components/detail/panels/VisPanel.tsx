@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { fmtDayHM, fmtDT, fmtDur, fmtHM, UNIT_LABEL } from '../../../data/detail/agg';
-import { computeVisDetail, DAWN_HOURS, DAWN_PATTERN_PCT, fmtVis, GRADE_UNIT_LABEL, LOW_VIS_KM, VIS_GRADE_COLOR, VIS_GRADE_LABEL, VIS_TH_1, VIS_TH_5, type TsReport, type VisRun } from '../../../data/detail/vis';
+import { computeVisDetail, DAWN_HOURS, DAWN_PATTERN_PCT, fmtVis, GRADE_UNIT_LABEL, LOW_VIS_KM, VIS_GRADE_COLOR, VIS_GRADE_LABEL, VIS_TH_1, VIS_TH_5, type RvrRow, type TsReport, type VisRun } from '../../../data/detail/vis';
 import { BarChart, HOUR_LABELS, TimeSeriesChart } from '../charts';
 import { DetailTable, Legend, Section, StatTiles, type Column } from '../primitives';
 import type { PanelProps } from './types';
@@ -88,7 +88,30 @@ export function VisPanel({ recs, win, onOpenRaw }: PanelProps) {
     { key: 'wind', label: '바람', mono: true, render: (r) => r.wind },
     { key: 'vis', label: '시정', mono: true, align: 'right', render: (r) => <span style={{ color: visColor(r.vis) }}>{fmtVis(r.vis)}</span> },
     { key: 'cloud', label: '구름', mono: true, render: (r) => r.cloud },
-    { key: 'tags', label: '태그', mono: true, render: (r) => r.tags.join(' ') },
+    { key: 'wx', label: '현재 기상', mono: true, render: (r) => r.wxTxt || '—' },
+    { key: 'kind', label: '근거', mono: true, render: (r) => [r.tags.includes('TS') ? 'TS' : '', r.cb ? 'CB' : ''].filter(Boolean).join('+') },
+  ];
+
+  const rvrCols: Column<RvrRow>[] = [
+    { key: 'ts', label: '시각', mono: true, render: (r) => fmtDT(r.ts) },
+    { key: 'letter', label: 'INFO', mono: true, align: 'center', render: (r) => r.letter },
+    {
+      key: 'rvr',
+      label: 'RVR (TDZ / MID / END, m)',
+      mono: true,
+      render: (r) => (
+        <span style={{ display: 'inline-flex', gap: 12 }}>
+          {r.rwys.map((x) => (
+            <span key={x.rwy}>
+              <b>RWY{x.rwy}</b> {[x.tdz, x.mid, x.end].map((v) => (v == null ? '—' : String(v))).join(' / ')}
+            </span>
+          ))}
+        </span>
+      ),
+    },
+    { key: 'min', label: '최저', align: 'right', mono: true, render: (r) => <span style={{ color: r.min < 550 ? C_DANGER : C_AMBER, fontWeight: 700 }}>{r.min}m</span> },
+    { key: 'vis', label: '시정', mono: true, align: 'right', render: (r) => <span style={{ color: visColor(r.vis) }}>{fmtVis(r.vis)}</span> },
+    { key: 'wx', label: '현재 기상', mono: true, render: (r) => r.wxTxt || '—' },
   ];
 
   const gradeTitle = d.gradeUnit === 'hour' ? '시간별 시정 등급 구성' : d.gradeUnit === 'day' ? '일별 시정 등급 구성' : '주별 시정 등급 구성';
@@ -112,9 +135,17 @@ export function VisPanel({ recs, win, onOpenRaw }: PanelProps) {
             value: `${d.lowRuns.length}회`,
             sub: d.lowRuns.length ? `누적 ${fmtDur(d.lowRunTotalMs)}` : '—',
           },
-          { label: 'TS 보고', value: `${d.tsCount}건`, color: d.tsCount ? C_AMBER : undefined, sub: d.tsCount ? `마지막 ${fmtDayHM(d.tsReports[d.tsReports.length - 1].ts)}` : '뇌전 보고 없음' },
+          { label: 'CAVOK', value: `${d.cavokPct}%`, sub: `${d.cavokCount.toLocaleString()}건` },
+          { label: 'TS/CB 보고', value: `${d.tsCount}건`, color: d.tsCount ? C_AMBER : undefined, sub: d.tsCount ? `마지막 ${fmtDayHM(d.tsReports[d.tsReports.length - 1].ts)}` : '뇌전·CB 보고 없음' },
           { label: '시정 <5KM', value: `${d.under5Count}건`, sub: `이 중 <1KM ${d.under1Count}건`, color: d.under5Count ? C_VIS : undefined },
           { label: '안개 (FG/BR)', value: `${d.fogCount}건`, sub: `FG ${d.fgCount}건 · BR ${d.brCount}건` },
+          { label: 'RVR 보고 전문', value: `${d.rvrCount}건`, sub: d.rvrCount ? '활주로별 TDZ/MID/END' : 'RVR 보고 없음' },
+          {
+            label: '최저 RVR',
+            value: d.minRvr ? `${d.minRvr.m}m` : '—',
+            sub: d.minRvr ? `RWY${d.minRvr.rwy} ${d.minRvr.pos} · ${fmtDayHM(d.minRvr.ts)}` : undefined,
+            color: d.minRvr ? (d.minRvr.m < 550 ? C_DANGER : C_AMBER) : undefined,
+          },
           {
             label: '최장 저시정 구간',
             value: d.longestRun && d.longestRun.n > 1 ? fmtDur(d.longestRun.durMs) : d.longestRun ? '1건' : '—',
@@ -130,7 +161,7 @@ export function VisPanel({ recs, win, onOpenRaw }: PanelProps) {
           <>
             <Legend color={C_VIS} label="시정" />
             <Legend kind="dash" label={`한계 ${VIS_TH_5}KM / ${VIS_TH_1}KM`} />
-            <Legend kind="sq" color={C_TS_BAND} label="TS 보고 구간" />
+            <Legend kind="sq" color={C_TS_BAND} label="TS/CB 보고 구간" />
           </>
         }
       >
@@ -224,13 +255,16 @@ export function VisPanel({ recs, win, onOpenRaw }: PanelProps) {
       <Section title="저시정 이벤트" sub={`시정 <${LOW_VIS_KM}KM 연속 구간 ${d.lowRuns.length}회 · 클릭 → 최저 시정 원문`}>
         <DetailTable columns={runCols} rows={d.lowRuns} rowKey={(r) => r.start} onRowClick={(r) => onOpenRaw(r.minIdx)} emptyText="기간 내 저시정 이벤트가 없습니다." />
       </Section>
-      <Section title="TS 보고" sub={`뇌전(TS) 태그 전문 ${d.tsCount}건 · 클릭 → 원문`}>
-        <DetailTable columns={tsCols} rows={d.tsReports} rowKey={(r) => r.index} onRowClick={(r) => onOpenRaw(r.index)} maxHeight={280} emptyText="기간 내 TS 보고가 없습니다." />
+      <Section title="RVR 보고" sub={`활주로 가시거리 보고 전문 ${d.rvrCount}건 · 클릭 → 원문`}>
+        <DetailTable columns={rvrCols} rows={d.rvrRows} rowKey={(r) => r.index} onRowClick={(r) => onOpenRaw(r.index)} maxHeight={280} emptyText="기간 내 RVR 보고가 없습니다." />
+      </Section>
+      <Section title="TS/CB 보고" sub={`뇌전(TS) 태그 또는 CB 구름 보고 전문 ${d.tsCount}건 · 클릭 → 원문`}>
+        <DetailTable columns={tsCols} rows={d.tsReports} rowKey={(r) => r.index} onRowClick={(r) => onOpenRaw(r.index)} maxHeight={280} emptyText="기간 내 TS/CB 보고가 없습니다." />
       </Section>
 
       <span className="dsection__note">
-        시정 저하 = 시정 {LOW_VIS_KM}KM 미만 (통계 카드와 동일) · 등급 ≥10 / 5–&lt;10 / 1–&lt;5 / &lt;1 KM · 지속 시간 = 구간 첫 전문 ~ 마지막 전문 시각 차 (한 건이면 표시 안 함) · TS = 전문 태그 'TS', 안개 = FG/BR 태그 ·
-        시각은 UTC(Z)
+        시정 저하 = 시정 {LOW_VIS_KM}KM 미만 (통계 카드와 동일) · 등급 ≥10 / 5–&lt;10 / 1–&lt;5 / &lt;1 KM · CAVOK = 전문의 CAV-OK (시정 10KM로 집계) · 지속 시간 = 구간 첫 전문 ~ 마지막 전문 시각 차 (한 건이면 표시 안 함) · TS/CB = 현재 기상 코드 TS 또는
+        CB 구름층 (카드와 동일), 안개 = FG/BR 코드 · RVR = 전문의 "RWY.. TOUCHDOWN / MID / END RVR" (m, 550m 미만 강조) · 시각은 UTC(Z)
       </span>
     </>
   );

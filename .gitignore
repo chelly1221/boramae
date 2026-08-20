@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ATIS 보관 DB (exe 옆에 생성)
+atis.sqlite
+atis.sqlite-*

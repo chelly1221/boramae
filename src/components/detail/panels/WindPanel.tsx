@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { DIR8, fmtDayHM, fmtDT, fmtDur, fmtNum, UNIT_LABEL } from '../../../data/detail/agg';
-import { argMax, CALM_KT, chartYMax, computeWindDetail, fmtDir, MAX_BANDS, ROSE_BINS, STRONG_KT, type StrongWindEvent } from '../../../data/detail/wind';
+import { argMax, CALM_KT, chartYMax, computeWindDetail, fmtDir, MAX_BANDS, ROSE_BINS, STRONG_KT, type GustReport, type StrongWindEvent } from '../../../data/detail/wind';
 import { windColor } from '../../../data/stats';
 import { BarChart, HOUR_LABELS, TimeSeriesChart } from '../charts';
 import { DetailTable, Legend, Section, StatTiles, type Column } from '../primitives';
@@ -56,6 +56,28 @@ export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
     { key: 'mdir', label: '구간 평균 풍향', mono: true, render: (e) => fmtDir(e.meanDir) },
   ];
 
+  const pad3 = (v: number) => String(v).padStart(3, '0');
+  const gustCols: Column<GustReport>[] = [
+    { key: 'ts', label: '시각', mono: true, render: (g) => fmtDT(g.ts) },
+    { key: 'letter', label: 'INFO', mono: true, align: 'center', render: (g) => g.letter },
+    { key: 'wind', label: '바람', mono: true, render: (g) => g.wind },
+    { key: 'dir', label: '풍향', mono: true, render: (g) => fmtDir(g.dir) },
+    { key: 'spd', label: '풍속', align: 'right', mono: true, render: (g) => `${g.spd} KT` },
+    {
+      key: 'gust',
+      label: '돌풍',
+      align: 'right',
+      mono: true,
+      render: (g) => (
+        <span style={{ fontWeight: 700, color: C_STRONG }}>
+          <SpdSwatch spd={g.gust} />
+          {g.gust} KT
+        </span>
+      ),
+    },
+    { key: 'var', label: '변동 범위', mono: true, render: (g) => (g.varFrom != null && g.varTo != null ? `${pad3(g.varFrom)}–${pad3(g.varTo)}°` : '—') },
+  ];
+
   return (
     <>
       <StatTiles
@@ -74,7 +96,14 @@ export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
           { label: '주풍향 (8방위)', value: d.domDir, sub: `${d.domPct}% · 16방위 최다 ${topDir16?.label ?? '—'} ${topDir16?.pct ?? 0}%${topTies > 1 ? ` (${topTies}개 동률)` : ''}` },
           { label: '벡터 평균 풍향', value: fmtDir(d.vecDir), sub: '풍향 벡터 합의 방향' },
           { label: `정온 ≤${CALM_KT}KT`, value: `${d.calmPct}%`, sub: `${d.calmCount.toLocaleString()}건` },
+          { label: 'CALM·VRB', value: `${d.calmVrbPct}%`, sub: `CALM ${d.calmReported.toLocaleString()}건 · VRB ${d.vrbCount.toLocaleString()}건 · 변동 범위 ${d.varCount.toLocaleString()}건` },
           { label: `강풍 ≥${STRONG_KT}KT`, value: `${d.strongCount.toLocaleString()}건`, sub: `${d.strongPct}% · ${d.events.length}개 구간`, color: d.strongCount ? C_STRONG : undefined },
+          {
+            label: '돌풍 보고',
+            value: d.gustMax ? `G${d.gustMax.gust} KT` : '없음',
+            sub: d.gustMax ? `${d.gustN.toLocaleString()}건 · 최대 ${fmtDayHM(d.gustMax.ts)} ${d.gustMax.wind}` : '기간 내 GUST 보고 없음',
+            color: d.gustMax ? C_STRONG : undefined,
+          },
           { label: '기간 마지막', value: d.last, sub: d.n ? fmtDayHM(recs[d.lastIndex].ts) : undefined },
         ]}
       />
@@ -252,9 +281,19 @@ export function WindPanel({ recs, win, onOpenRaw }: PanelProps) {
       <Section title="강풍 이벤트" sub={`풍속 ≥ ${STRONG_KT}KT 연속 구간 · 클릭 → 최대 풍속 원문`}>
         <DetailTable columns={evCols} rows={d.events} rowKey={(e) => e.start} onRowClick={(e) => onOpenRaw(e.maxIndex)} emptyText={`기간 내 ${STRONG_KT}KT 이상 강풍이 없습니다.`} />
         <span className="dsection__note">
-          연속 구간 = {STRONG_KT}KT 이상 전문이 끊기지 않고 이어진 범위(지속 = 첫 전문 ~ 마지막 전문 시각). 바람 구간(&lt;8 / 8–13 / ≥14KT)·주풍향은 통계 카드와 같은 정의이며, 정온은 {CALM_KT}KT 이하, 벡터 평균 풍향은 각 전문 풍향의 단위벡터 합 방향입니다.
+          연속 구간 = {STRONG_KT}KT 이상 전문이 끊기지 않고 이어진 범위(지속 = 첫 전문 ~ 마지막 전문 시각, 정기 발행 간격 1시간 단위 근사). 바람 구간(&lt;8 / 8–13 / ≥14KT)·주풍향은 통계 카드와 같은 정의이며, 정온은 {CALM_KT}KT 이하, 벡터 평균 풍향은 각 전문 풍향의
+          단위벡터 합 방향입니다.
         </span>
       </Section>
+
+      {d.gustN > 0 ? (
+        <Section title="돌풍 보고" sub={`GUST 보고 전문 ${d.gustN.toLocaleString()}건 · 클릭 → 원문`}>
+          <DetailTable columns={gustCols} rows={d.gusts} rowKey={(g) => g.index} onRowClick={(g) => onOpenRaw(g.index)} maxHeight={280} />
+          <span className="dsection__note">돌풍 = 전문 "WIND ddd AT ss GUST gg KNOTS"의 gg. CALM = "WIND CALM", VRB = 풍향 없이 "WIND VARIABLE BETWEEN a AND b s KNOTS"(대표 풍향은 범위 중앙), 변동 범위 = 풍향 뒤 "VARIABLE BETWEEN a AND b".</span>
+        </Section>
+      ) : (
+        <span className="dsection__note">기간 내 돌풍(GUST) 보고 전문이 없습니다. CALM = "WIND CALM", VRB = 풍향 없이 "WIND VARIABLE BETWEEN a AND b s KNOTS"(대표 풍향은 범위 중앙), 변동 범위 = 풍향 뒤 "VARIABLE BETWEEN a AND b".</span>
+      )}
     </>
   );
 }

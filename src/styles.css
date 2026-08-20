@@ -258,6 +258,12 @@ svg {
   letter-spacing: 0.06em;
   color: var(--primary);
 }
+.airport__badge--off {
+  color: var(--ink-muted-45);
+}
+.airport__badge--err {
+  color: #b4451c;
+}
 .nav {
   display: flex;
   flex-direction: column;
@@ -873,6 +879,38 @@ svg {
   padding: 1px 6px;
   transform: translate(0, -50%);
 }
+/* 사용 활주로 문자 라벨 (ARR/DEP) — 조금 크고 진하게 */
+.vis-pill--rwy {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  letter-spacing: 0.02em;
+}
+/* 지도 기간 지정 패널 — 지도 위 상단 중앙 플로팅 (PeriodPicker 카드 재사용) */
+.map-period {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* 왼쪽 플로팅 카드(≈230px)와 겹치지 않게 */
+  max-width: calc(100% - 270px);
+}
+.map-period .period {
+  min-width: 0;
+}
+.map-period .period {
+  background: rgba(253, 252, 252, 0.96);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 22px rgba(50, 35, 25, 0.18);
+}
+.map-period__close {
+  background: rgba(253, 252, 252, 0.96);
+  box-shadow: 0 2px 10px rgba(50, 35, 25, 0.15);
+  flex-shrink: 0;
+}
 .map-cards {
   position: absolute;
   top: 14px;
@@ -1000,6 +1038,44 @@ svg {
   color: var(--ink-muted-45);
   flex: 1;
 }
+.scrubber__speed {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-12);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.scrubber__speed-item {
+  padding: 1px 7px;
+  color: var(--ink-muted-55);
+  cursor: pointer;
+}
+.scrubber__speed-item + .scrubber__speed-item {
+  border-left: 1px solid var(--border-1);
+}
+.scrubber__speed-item:hover {
+  background: rgba(127, 13, 0, 0.08);
+}
+.scrubber__speed-item--active,
+.scrubber__speed-item--active:hover {
+  background: rgba(127, 13, 0, 0.1);
+  color: var(--primary);
+}
+.scrubber__clock {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  opacity: 0.8;
+}
+.scrubber__count {
+  font-size: 11px;
+  color: var(--ink-muted-45);
+  font-family: var(--font-mono);
+}
 .scrubber__time {
   font-size: 12px;
   font-weight: 800;
@@ -1036,6 +1112,39 @@ svg {
 }
 .scrubber__cell--sel svg {
   opacity: 1;
+}
+.scrubber__axis {
+  position: relative;
+  height: 16px;
+  margin-top: -2px;
+}
+.scrubber__tick {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 4px;
+  border-left: 1px solid rgba(50, 30, 20, 0.25);
+}
+.scrubber__tick--labeled {
+  height: 6px;
+}
+.scrubber__tick--day {
+  border-left-color: rgba(50, 30, 20, 0.55);
+  height: 7px;
+}
+.scrubber__tick span {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--ink-muted-45);
+  white-space: nowrap;
+}
+.scrubber__tick--day span {
+  font-weight: 800;
+  color: var(--ink-muted-6);
 }
 .scrubber__foot {
   display: flex;
@@ -1101,6 +1210,19 @@ svg {
 }
 .btn-sm:hover {
   background: rgba(0, 0, 0, 0.04);
+}
+.btn-sm,
+.btn {
+  cursor: pointer;
+  user-select: none;
+}
+.btn--busy svg {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .folder-meta {
   display: flex;

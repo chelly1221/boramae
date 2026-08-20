@@ -101,7 +101,7 @@ const STRIKE_REPORTS: [number, number, string][] = [
 ];
 
 /** 팔레트 키 → 라이트/브라이트 두 색을 CSS 변수로 심는 라벨 필. `.mapview--aerial`이 브라이트 쪽을 고른다 */
-type PillColorKey = 'vis' | 'visLow' | 'vorText' | 'birdHvy' | 'birdLgt';
+type PillColorKey = 'vis' | 'visLow' | 'vorText' | 'birdHvy' | 'birdLgt' | 'runway';
 const pillVars = (key: PillColorKey) => `--pill-c:${LIGHT[key]};--pill-c-b:${BRIGHT[key]}`;
 const pill = (text: string, key?: PillColorKey, extraClass = '') =>
   L.divIcon({ className: '', html: `<div class="vis-pill ${extraClass}"${key ? ` style="${pillVars(key)}"` : ''}>${text}</div>`, iconSize: [0, 0] });
@@ -115,6 +115,9 @@ export interface MapState {
   showVis: boolean;
   /** ATIS 사용 활주로 그룹 — 접근/출발 경로 방향 결정 */
   activeRwy: Runway;
+  /** 착륙/이륙 활주로 ("32R"/"32L") — 지도 위 문자 라벨. 없으면 방향 그룹으로 표시 */
+  arrRwy: string | null;
+  depRwy: string | null;
   /** 선택 시각 전문의 조류 활동 보고 → 부채꼴 섹터 */
   birds: BirdReport[];
   /** 항공사진 오버레이 */
@@ -139,7 +142,57 @@ interface Layers {
   paths: L.LayerGroup;
   /** 조류 활동 섹터 — 선택 전문 바뀔 때 다시 그림 */
   birds: L.LayerGroup;
+  /** 사용 활주로 문자 라벨 (ARR/DEP) */
+  rwyLabels: L.LayerGroup;
   themed: Themed[];
+}
+
+/** 시정 원 반경 전환 시간 (ms) */
+const VIS_ANIM_MS = 450;
+
+/** 지정자("32R")에 해당하는 활주로 끝과 그 스트립 — 없으면 null */
+function endByDesignator(designator: string): { end: RunwayEnd; strip: (typeof RKSS.runways)[number] } | null {
+  for (const strip of RKSS.runways) for (const end of strip.ends) if (end.designator === designator) return { end, strip };
+  return null;
+}
+
+/** 라벨 위치: 시단에서 접근 방향 바깥으로 alongM, 이웃 활주로 반대쪽(바깥)으로 sideM 비켜 놓는다 (평행 활주로 라벨 겹침 방지) */
+function labelPos(end: RunwayEnd, strip: (typeof RKSS.runways)[number], alongM: number, sideM: number): L.LatLngTuple {
+  const back = (end.heading + 180) % 360;
+  const base = destination(end.thr, back, alongM);
+  const sibling = RKSS.runways.find((st) => st !== strip);
+  if (!sibling) return ll(base);
+  // 이웃 스트립의 같은 방향 시단과 비교해 어느 쪽이 바깥인지 결정
+  const sibEnd = sibling.ends.find((e) => e.heading === end.heading) ?? sibling.ends[0];
+  const right = destination(end.thr, (end.heading + 90) % 360, 10);
+  const dRight = Math.hypot(right.lat - sibEnd.thr.lat, (right.lon - sibEnd.thr.lon) * Math.cos((end.thr.lat * Math.PI) / 180));
+  const dHere = Math.hypot(end.thr.lat - sibEnd.thr.lat, (end.thr.lon - sibEnd.thr.lon) * Math.cos((end.thr.lat * Math.PI) / 180));
+  const outward = dRight > dHere ? (end.heading + 90) % 360 : (end.heading + 270) % 360;
+  return ll(destination(base, outward, sideM));
+}
+
+/**
+ * 사용 활주로 문자 라벨: 착륙 활주로 시단 앞(접근 방향 바깥)에 "ARR 32R ↓ 착륙", 이륙 활주로 활주 시작점 바깥에 "DEP 32L ↑ 이륙".
+ * 각 라벨은 자기 활주로의 바깥쪽으로 비켜 평행 활주로끼리 겹치지 않고, 같은 시단이면 DEP를 더 멀리 둔다.
+ * 지정자가 없으면 방향 그룹(32/14)의 착륙 시단에 표시.
+ */
+function drawRwyLabels(group: L.LayerGroup, activeRwy: Runway, arrRwy: string | null, depRwy: string | null) {
+  group.clearLayers();
+  const prefix = runwayDirPrefix(activeRwy);
+  const arr = (arrRwy && endByDesignator(arrRwy)) || null;
+  const dep = (depRwy && endByDesignator(depRwy)) || null;
+  const put = (e: NonNullable<typeof arr>, text: string, alongM: number) => {
+    L.marker(labelPos(e.end, e.strip, alongM, 420), { icon: pill(text, 'runway', 'vis-pill--rwy'), interactive: false, keyboard: false }).addTo(group);
+  };
+  if (!arr && !dep) {
+    for (const strip of RKSS.runways) {
+      const { landing } = endsFor(strip, prefix);
+      put({ end: landing, strip }, `RWY ${landing.designator} 사용`, 600);
+    }
+    return;
+  }
+  if (arr) put(arr, `ARR ${arr.end.designator} ↓ 착륙`, 600);
+  if (dep) put(dep, `DEP ${dep.end.designator} ↑ 이륙`, arr && arr.end.designator === dep.end.designator ? 1400 : 600);
 }
 
 /** 활주로 스트립의 두 끝 중 착륙 방향 접두("32"/"14")에 해당하는 끝과 반대 끝 */
@@ -298,6 +351,8 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
 
     // 조류 활동 섹터 (선택 전문 보고에 따라 갱신)
     const birds = L.layerGroup().addTo(map);
+    // 사용 활주로 문자 라벨 (선택 전문에 따라 갱신)
+    const rwyLabels = L.layerGroup().addTo(map);
 
     // 최근 조류 충돌/회피 보고
     for (const [lat, lng, label] of STRIKE_REPORTS) {
@@ -332,7 +387,7 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
     }).addTo(map);
     const visLabel = L.marker(ARP, { icon: pill('VIS —', 'vis'), interactive: false, keyboard: false }).addTo(map);
 
-    ref.current = { map, aerial, visCircle, visHalo, visLabel, runways, paths, birds, themed };
+    ref.current = { map, aerial, visCircle, visHalo, visLabel, runways, paths, birds, rwyLabels, themed };
 
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(el);
@@ -344,25 +399,25 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
     };
   }, [container]);
 
-  // 시정 원 (팔레트 바뀌어도 색을 다시 골라야 하므로 aerial 의존)
+  // 시정 원 — 반경은 이전 값에서 목표 값으로 부드럽게(ease-out) 전환, 색은 팔레트/저하 여부에 따라 즉시
+  const visAnim = useRef<{ cur: number; raf: number }>({ cur: 8000, raf: 0 });
   useEffect(() => {
     const r = ref.current;
     if (!r) return;
     const pal = paletteFor(state.aerial);
     const labelEl = r.visLabel.getElement();
+    const a = visAnim.current;
+    cancelAnimationFrame(a.raf);
     if (!state.showVis) {
       r.visCircle.setStyle({ opacity: 0, fillOpacity: 0 });
       r.visHalo.setStyle({ opacity: 0 });
       if (labelEl) labelEl.style.display = 'none';
       return;
     }
-    const rm = Math.min(state.vis, 10) * 1000;
+    const target = Math.min(state.vis, 10) * 1000;
     const low = state.vis < 10;
     r.visCircle.setStyle({ opacity: 1, fillOpacity: 0.03, color: visColor(pal, state.vis), fillColor: pal.bright ? '#fff' : PRIMARY });
-    r.visCircle.setRadius(rm);
     r.visHalo.setStyle({ opacity: pal.halo });
-    r.visHalo.setRadius(rm);
-    r.visLabel.setLatLng([ARP[0] + rm / 111320, ARP[1]]);
     if (labelEl) {
       labelEl.style.display = '';
       const p = labelEl.querySelector<HTMLElement>('.vis-pill');
@@ -371,6 +426,26 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
         p.style.cssText = pillVars(low ? 'visLow' : 'vis');
       }
     }
+    const apply = (rm: number) => {
+      a.cur = rm;
+      r.visCircle.setRadius(rm);
+      r.visHalo.setRadius(rm);
+      r.visLabel.setLatLng([ARP[0] + rm / 111320, ARP[1]]);
+    };
+    const from = a.cur;
+    if (Math.abs(target - from) < 1) {
+      apply(target);
+      return;
+    }
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / VIS_ANIM_MS);
+      const e = 1 - Math.pow(1 - k, 3);
+      apply(from + (target - from) * e);
+      if (k < 1) a.raf = requestAnimationFrame(step);
+    };
+    a.raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(a.raf);
   }, [state.vis, state.visTxt, state.showVis, state.aerial]);
 
   // 사용 활주로 → 접근/출발 경로, 활주로 툴팁 (팔레트 반영을 위해 aerial 의존)
@@ -378,12 +453,16 @@ export function useLeafletMap(container: RefObject<HTMLDivElement | null>, state
     const r = ref.current;
     if (!r) return;
     drawPaths(r.paths, state.activeRwy, paletteFor(state.aerial));
+    drawRwyLabels(r.rwyLabels, state.activeRwy, state.arrRwy, state.depRwy);
     const prefix = runwayDirPrefix(state.activeRwy);
     for (const strip of RKSS.runways) {
       const { landing } = endsFor(strip, prefix);
-      r.runways.get(strip.id)?.setTooltipContent(`RWY ${strip.id} · ${strip.length}×${strip.width}m · 사용 중 ${landing.designator}`);
+      const use = [state.arrRwy && strip.ends.some((e) => e.designator === state.arrRwy) ? `착륙 ${state.arrRwy}` : '', state.depRwy && strip.ends.some((e) => e.designator === state.depRwy) ? `이륙 ${state.depRwy}` : '']
+        .filter(Boolean)
+        .join(' · ');
+      r.runways.get(strip.id)?.setTooltipContent(`RWY ${strip.id} · ${strip.length}×${strip.width}m · ${use || `사용 방향 ${landing.designator}`}`);
     }
-  }, [state.activeRwy, state.aerial]);
+  }, [state.activeRwy, state.arrRwy, state.depRwy, state.aerial]);
 
   // 조류 활동 섹터 (팔레트 반영을 위해 aerial 의존)
   useEffect(() => {

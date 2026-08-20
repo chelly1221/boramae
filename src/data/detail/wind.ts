@@ -6,6 +6,8 @@ import { autoUnit, bucketize, bucketValues, DIR16, DIR8, dir16, hourProfile, mea
  * 바람 상세 파생값 — 풍속/풍향 추이(자동 해상도), 바람(8방위 × 3속도), 16방위 빈도,
  * 시간대별 평균 풍속, 풍속 등급 분포, 강풍(≥15KT) 연속 구간 이벤트.
  * 바람 구간(<8 / 8–13 / ≥14KT)·주풍향 정의는 통계 카드(stats.ts computeStats)와 동일.
+ * 돌풍(gust) = 전문 "AT .. GUST .. KNOTS", CALM = "WIND CALM", VRB = "WIND VARIABLE BETWEEN a AND b s KNOTS"(풍향 없음, 대표 풍향 = 범위 중앙),
+ * 변동 범위 = 풍향 뒤 "VARIABLE BETWEEN a AND b" (varFrom/varTo). 정온(≤CALM_KT)은 풍속 기준이라 CALM 전문과는 별개로 센다.
  */
 
 /** 정온 판정 (KT 이하) */
@@ -67,6 +69,20 @@ export interface SpeedClass {
   pct: number;
 }
 
+/** 돌풍 보고 전문 1건 */
+export interface GustReport {
+  index: number;
+  ts: number;
+  letter: string;
+  wind: string;
+  dir: number;
+  spd: number;
+  gust: number;
+  /** 풍향 변동 범위 (없으면 null) */
+  varFrom: number | null;
+  varTo: number | null;
+}
+
 export interface WindDetail {
   n: number;
   unit: Unit;
@@ -97,6 +113,19 @@ export interface WindDetail {
   vecDir: number;
   calmCount: number;
   calmPct: number;
+  /** "WIND CALM" 전문 수 (풍속 0) */
+  calmReported: number;
+  /** 풍향 VRB 전문 수 */
+  vrbCount: number;
+  /** CALM 또는 VRB 전문 수 / 비율(%) */
+  calmVrbCount: number;
+  calmVrbPct: number;
+  /** 풍향 변동 범위(VARIABLE BETWEEN) 보고 전문 수 */
+  varCount: number;
+  /** 돌풍 보고 전문 수 · 최대 돌풍 (없으면 null) */
+  gustN: number;
+  gustMax: { gust: number; index: number; ts: number; wind: string } | null;
+  gusts: GustReport[];
   strongCount: number;
   strongPct: number;
   events: StrongWindEvent[];
@@ -153,6 +182,12 @@ export function computeWindDetail(recs: AtisRecord[], win: TimeWindow): WindDeta
   let maxSpd = -Infinity;
   let maxIndex = -1;
   let calmCount = 0;
+  let calmReported = 0;
+  let vrbCount = 0;
+  let calmVrbCount = 0;
+  let varCount = 0;
+  let gustMax: WindDetail['gustMax'] = null;
+  const gusts: GustReport[] = [];
   let strongCount = 0;
   let sx = 0;
   let sy = 0;
@@ -167,6 +202,14 @@ export function computeWindDetail(recs: AtisRecord[], win: TimeWindow): WindDeta
       maxIndex = i;
     }
     if (r.spd <= CALM_KT) calmCount++;
+    if (r.calm) calmReported++;
+    if (r.vrb) vrbCount++;
+    if (r.calm || r.vrb) calmVrbCount++;
+    if (r.varFrom != null) varCount++;
+    if (r.gust != null) {
+      gusts.push({ index: i, ts: r.ts, letter: r.letter, wind: r.wind, dir: r.dir, spd: r.spd, gust: r.gust, varFrom: r.varFrom, varTo: r.varTo });
+      if (!gustMax || r.gust > gustMax.gust) gustMax = { gust: r.gust, index: i, ts: r.ts, wind: r.wind };
+    }
     if (r.spd >= STRONG_KT) strongCount++;
     const rad = (r.dir * Math.PI) / 180;
     sx += Math.sin(rad);
@@ -260,6 +303,14 @@ export function computeWindDetail(recs: AtisRecord[], win: TimeWindow): WindDeta
     vecDir: n ? ((Math.atan2(sx, sy) * 180) / Math.PI + 360) % 360 : NaN,
     calmCount,
     calmPct: pct(calmCount, n),
+    calmReported,
+    vrbCount,
+    calmVrbCount,
+    calmVrbPct: pct(calmVrbCount, n),
+    varCount,
+    gustN: gusts.length,
+    gustMax,
+    gusts,
     strongCount,
     strongPct: pct(strongCount, n),
     events,

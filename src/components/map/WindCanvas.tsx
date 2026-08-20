@@ -26,11 +26,16 @@ interface Particle {
   ph: number;
 }
 
-/** Windy 스타일 바람 파티클 오버레이 (design/map.html 이식) */
+/** 프레임당 목표값으로 다가가는 비율 (60fps 기준 약 0.6초에 95% 수렴) */
+const EASE = 0.08;
+
+/** Windy 스타일 바람 파티클 오버레이 (design/map.html 이식). 풍향·풍속은 전문이 바뀔 때 목표값으로 부드럽게 수렴한다. */
 export function WindCanvas({ dir, spd, visible, bright }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const wind = useRef({ dir, spd, bright });
   wind.current = { dir, spd, bright };
+  /** 현재(보간 중인) 풍향·풍속 */
+  const cur = useRef({ dir, spd });
 
   useEffect(() => {
     const cv = ref.current;
@@ -54,7 +59,16 @@ export function WindCanvas({ dir, spd, visible, bright }: Props) {
     resize();
 
     const tick = () => {
-      const { dir, spd, bright } = wind.current;
+      const { dir: tDir, spd: tSpd, bright } = wind.current;
+      const c = cur.current;
+      // 풍향은 최단 각도로, 풍속은 선형으로 수렴
+      const dd = ((tDir - c.dir + 540) % 360) - 180;
+      c.dir = (c.dir + dd * EASE + 360) % 360;
+      c.spd += (tSpd - c.spd) * EASE;
+      if (Math.abs(dd) < 0.05) c.dir = tDir;
+      if (Math.abs(tSpd - c.spd) < 0.02) c.spd = tSpd;
+      const dir = c.dir;
+      const spd = c.spd;
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = bright ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.075)';
       ctx.fillRect(0, 0, W, H);

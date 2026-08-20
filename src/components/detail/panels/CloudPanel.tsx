@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
 import { fmtDayHM, fmtDT, fmtDur, UNIT_LABEL } from '../../../data/detail/agg';
 import {
-  APP_COLORS,
-  APPROACHES,
   CLOUD_CAT_COLORS,
   CLOUD_CAT_LABEL,
   computeCloudDetail,
@@ -32,7 +30,7 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
     if (idx != null) onOpenRaw(idx);
   };
   const compLabel = d.compUnit === 'hour' ? '시간별' : '일별';
-  const otherApps = APPROACHES.filter((a) => a !== d.topApp);
+  const otherApps = d.appNames.filter((a) => a !== d.topApp && d.appCount[a] > 0);
 
   const lowCols: Column<LowCeilEvent>[] = [
     { key: 'start', label: '시작', mono: true, render: (e) => fmtDT(e.startTs) },
@@ -48,7 +46,7 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
     },
     { key: 'cloud', label: '구름', mono: true, render: (e) => e.cloud },
     { key: 'vis', label: '당시 시정', align: 'right', mono: true, render: (e) => e.visTxt },
-    { key: 'app', label: '접근', render: (e) => <span style={{ color: APP_COLORS[e.app], fontWeight: 700 }}>{e.app}</span> },
+    { key: 'app', label: '접근', render: (e) => <span style={{ color: d.appColors[e.app], fontWeight: 700 }}>{e.app}</span> },
   ];
 
   return (
@@ -71,13 +69,19 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
             color: d.lowCount ? C_AMBER : undefined,
           },
           {
+            label: 'CB 보고',
+            value: `${d.cbCount.toLocaleString()}건`,
+            sub: d.vvCount ? `VV/차폐 ${d.vvCount.toLocaleString()}건` : 'VV/차폐 보고 없음',
+            color: d.cbCount ? C_DANGER : undefined,
+          },
+          {
             label: '접근방식',
             value: (
-              <span style={{ color: APP_COLORS[d.topApp] }}>
+              <span style={{ color: d.appColors[d.topApp] }}>
                 {d.topApp} {d.appPct[d.topApp]}%
               </span>
             ),
-            sub: otherApps.map((a) => `${a} ${d.appPct[a]}%`).join(' · '),
+            sub: otherApps.length ? otherApps.map((a) => `${a} ${d.appPct[a]}%`).join(' · ') : '기간 내 단일 접근 명칭',
           },
           {
             label: '기간 마지막',
@@ -182,11 +186,11 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
         </Section>
         <Section
           title={`${compLabel} 접근방식 비율`}
-          sub="ILS / RNP / VOR · %"
+          sub={`${d.appNames.join(' / ')} · %`}
           right={
             <>
-              {APPROACHES.map((a) => (
-                <Legend key={a} kind="sq" color={APP_COLORS[a]} label={a} />
+              {d.appNames.map((a) => (
+                <Legend key={a} kind="sq" color={d.appColors[a]} label={a} />
               ))}
             </>
           }
@@ -195,8 +199,8 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
             items={d.comp.map((c) => ({
               label: c.label,
               title: c.title,
-              stack: APPROACHES.map((a) => ({ name: a, value: c.n ? (c.apps[a] / c.n) * 100 : 0, color: APP_COLORS[a] })),
-              note: c.n ? `총 ${c.n}건 · ${APPROACHES.map((a) => `${a} ${c.apps[a]}`).join(' / ')}` : '전문 없음',
+              stack: d.appNames.map((a) => ({ name: a, value: c.n ? ((c.apps[a] ?? 0) / c.n) * 100 : 0, color: d.appColors[a] })),
+              note: c.n ? `총 ${c.n}건 · ${d.appNames.map((a) => `${a} ${c.apps[a] ?? 0}`).join(' / ')}` : '전문 없음',
             }))}
             yMax={105}
             unit="%"
@@ -248,7 +252,7 @@ export function CloudPanel({ recs, win, onOpenRaw }: PanelProps) {
         <DetailTable columns={lowCols} rows={d.lowEvents} rowKey={(e) => e.start} onRowClick={(e) => onOpenRaw(e.minIndex)} emptyText={`기간 내 실링 ${LOW_CEIL_FT}FT 미만 보고가 없습니다.`} />
         <span className="dsection__note">
           CAVOK 비율 = cloud가 CAVOK인 전문 비율, BKN 이상 = 실링(운저 고도)이 보고된 전문(BKN/OVC/VV) 건수 — 통계 카드와 동일 정의. 저실링은 실링 {LOW_CEIL_FT}FT 미만, 연속 전문을 한 구간으로 병합(지속 = 첫~마지막 전문 시각 차).
-          접근방식 비율은 전문에 기재된 APCH 종류(ILS/RNP/VOR) 기준.
+          접근방식 비율은 전문에 기재된 접근 명칭("EXPECT ILS RWY32R APPROACH"의 ILS / ILS Z 등) 기준으로 기간 내 등장한 명칭만 표시. CB 보고 = 구름층에 CB가 붙은 전문, VV/차폐 = 수직시정(VERTICAL VISIBILITY) 또는 SKY OBSCURED 전문.
         </span>
       </Section>
     </>

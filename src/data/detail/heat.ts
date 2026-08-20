@@ -1,4 +1,4 @@
-import { computeHeatRows } from '../stats';
+import { computeHeatRows, isPrecip } from '../stats';
 import type { AtisRecord, HeatRow, TimeWindow } from '../types';
 import { DAY, fmtDay, HOUR, pct } from './agg';
 
@@ -7,7 +7,7 @@ import { DAY, fmtDay, HOUR, pct } from './agg';
  * 셀(시간대) 단위 집계: 종류별 셀 수, 이벤트 없는 날, 최다 시간대/일, 시간대별·일별 종류 누적, 시정 저하 집중 구간.
  *
  * 셀 이벤트 정의는 카드(`computeHeatRows`)와 동일:
- *   강수 = 레코드 태그에 RA·SN / 시정 저하 = 강수가 아니면서 vis < 10 / 활주로 전환 = 직전 레코드와 rwy가 다름.
+ *   강수 = 강수 계열 태그(RA·SN·DZ·GR·GS·PL·SG·UP, stats.ts `isPrecip`) / 시정 저하 = 강수가 아니면서 vis < 10 / 활주로 전환 = 직전 레코드와 rwy(방향)가 다름.
  *   셀 = 해당 UTC 시각(1시간)에 속한 레코드 중 하나라도 조건 충족.
  */
 
@@ -127,7 +127,7 @@ export function computeHeatDetail(recs: AtisRecord[], win: TimeWindow): HeatDeta
       c = { fog: false, rain: false, rwy: false };
       cellMap.set(key, c);
     }
-    const rain = r.tags.includes('RA') || r.tags.includes('SN');
+    const rain = isPrecip(r);
     const fog = !rain && r.vis < 10;
     const rwy = i > 0 && r.rwy !== recs[i - 1].rwy;
     if (rain) c.rain = true;

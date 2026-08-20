@@ -1,4 +1,4 @@
-import type { Approach, AtisRecord, BirdKind, BirdReport, Dir8, HeatCell, HeatRow, Range } from './types';
+import type { AtisRecord, BirdKind, BirdReport, Dir8, HeatCell, HeatRow, NoticeKind, Range } from './types';
 
 const HOUR_MS = 3600000;
 const DAY_MS = 24 * HOUR_MS;
@@ -57,9 +57,49 @@ export interface UpdBar {
 }
 
 export interface AppBar {
-  name: Approach;
+  /** 접근 명칭 (appName: "ILS" / "ILS Z" / "RNP" / "LOC Y") */
+  name: string;
+  n: number;
   pct: number;
   fill: string;
+}
+
+/** 활주로 표면 상태 카드 */
+export interface RwyCondCard {
+  /** 상태 보고가 있는 전문 수 / 비율(%) */
+  n: number;
+  pct: number;
+  /** 기간 내 최저 RWYCC (코드 보고가 없으면 null) */
+  minCode: number | null;
+  /** 최저 코드가 나온 보고 "2/0/1 RWY14R" */
+  minCodeTxt: string;
+  /** 제동작용 보고 수 */
+  brakingN: number;
+  /** 가장 나쁜 제동작용 ("MEDIUM TO POOR") */
+  worstBraking: string | null;
+  /** 마지막 상태 보고 전문 */
+  last: { index: number; time: string; summary: string } | null;
+}
+
+export interface NoticeChip {
+  kind: NoticeKind;
+  label: string;
+  color: string;
+  /** 공지가 있는 전문 수 */
+  n: number;
+  pct: number;
+}
+
+/** 운영 공지 카드 */
+export interface NoticeCard {
+  /** 공지 종류별 전문 수 (내림차순) */
+  chips: NoticeChip[];
+  /** 공지가 1건 이상인 전문 수 */
+  anyN: number;
+  /** 흐름관리 최대 지연(분) — 없으면 null */
+  flowMaxMin: number | null;
+  /** 현재(마지막 전문) 유효 공지 종류 */
+  current: NoticeKind[];
 }
 
 export interface TagChip {
@@ -97,6 +137,10 @@ export interface Stats {
   roseD: [string, string, string];
   domDir: string;
   domPct: number;
+  /** 최대 돌풍 (KT) — 돌풍 보고 없으면 null */
+  gustMax: number | null;
+  /** CALM·VRB 전문 비율 (%) */
+  calmVrbPct: number;
   // 측풍/배풍
   xwPts: string;
   thY: string;
@@ -106,6 +150,9 @@ export interface Stats {
   // 활주로
   p32: number;
   p14: number;
+  /** 현재(마지막 전문) 착륙/이륙 활주로 */
+  arrRwy: string;
+  depRwy: string;
   rwyEvents: RwyEvent[];
   // 갱신 빈도
   updBars: UpdBar[];
@@ -118,7 +165,10 @@ export interface Stats {
   // 시정
   lowVisCount: number;
   minVis: number;
+  /** TS 태그 또는 CB 구름 보고 전문 수 */
   tsCount: number;
+  /** RVR 보고 전문 수 */
+  rvrCount: number;
   // QNH
   qnhPts: string;
   qnhNow: number;
@@ -127,13 +177,160 @@ export interface Stats {
   qnhDelta: string;
   // 태그
   tagChips: TagChip[];
+  /** TREND BECMG/TEMPO 전문 수 */
+  trendChangeN: number;
+  // 활주로 표면 상태
+  rwyCond: RwyCondCard;
+  // 운영 공지
+  notice: NoticeCard;
   // 조류 활동
   bird: BirdCard;
 }
 
 const DIR_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const APP_COLORS: Record<Approach, string> = { ILS: '#7f0d00', RNP: '#b4451c', VOR: '#8c7a6e' };
-export const TAG_DESC: Record<string, string> = { BR: '박무', HZ: '연무', RA: '비', SN: '눈', TS: '뇌전', FG: '안개' };
+/** 접근 명칭별 색 (등장 순서대로 배정) */
+const APP_PALETTE = ['#7f0d00', '#b4451c', '#8c7a6e', '#6b8cae', '#b8770a'];
+/** 접근 명칭 → 색 (ILS 고정 primary) */
+export function appColor(name: string, order: number): string {
+  return name === 'ILS' ? APP_PALETTE[0] : APP_PALETTE[Math.min(APP_PALETTE.length - 1, Math.max(1, order))];
+}
+/** 기상현상 코드 설명 (전문 "WITH FBL TS RA BR" 의 2글자 코드) */
+export const TAG_DESC: Record<string, string> = {
+  BR: '박무',
+  FG: '안개',
+  HZ: '연무',
+  FU: '연기',
+  DU: '먼지',
+  SA: '모래',
+  VA: '화산재',
+  RA: '비',
+  SN: '눈',
+  DZ: '이슬비',
+  GR: '우박',
+  GS: '싸락우박',
+  PL: '얼음싸라기',
+  SG: '싸락눈',
+  IC: '세빙',
+  UP: '미상 강수',
+  TS: '뇌전',
+  SH: '소나기성',
+  FZ: '어는',
+  MI: '얕은',
+  BC: '조각',
+  PR: '부분',
+  DR: '낮은 날림',
+  BL: '높은 날림',
+  SQ: '스콜',
+  PO: '먼지 회오리',
+  FC: '깔때기 구름',
+  SS: '모래폭풍',
+  DS: '먼지폭풍',
+};
+/** 강수 계열 코드 (히트맵 '강수' 판정) */
+export const PRECIP_TAGS = ['RA', 'SN', 'DZ', 'GR', 'GS', 'PL', 'SG', 'UP'];
+export const isPrecip = (r: AtisRecord) => r.tags.some((t) => PRECIP_TAGS.includes(t));
+/** TS 태그 또는 CB 구름 */
+export const isTsCb = (r: AtisRecord) => r.tags.includes('TS') || r.clouds.some((c) => c.cb);
+
+/** 운영 공지 종류 — 표시 순서 */
+export const NOTICE_KINDS: NoticeKind[] = ['GPS', 'FLOW', 'WS', 'LVP', 'GRASS', 'FLTCK', 'BALLOON', 'GP_OTS', 'WIP', 'CLOSED', 'BIRDS', 'OTHER'];
+export const NOTICE_LABEL: Record<NoticeKind, string> = {
+  GPS: 'GPS 신호 불량',
+  FLOW: '흐름관리',
+  WS: '윈드시어',
+  LVP: '저시정 절차',
+  GRASS: '잔디 깎기',
+  FLTCK: '비행검사',
+  BALLOON: '자유기구 주의',
+  GP_OTS: 'GP 운용 중단',
+  WIP: '공사',
+  CLOSED: '공항 폐쇄',
+  BIRDS: '조류 주의(일반)',
+  OTHER: '기타',
+};
+export const NOTICE_COLOR: Record<NoticeKind, string> = {
+  GPS: '#6b8cae',
+  FLOW: '#b4451c',
+  WS: '#c8422e',
+  LVP: '#9a6a12',
+  GRASS: '#5f9a4e',
+  FLTCK: '#7b6bb3',
+  BALLOON: '#d98a0c',
+  GP_OTS: '#7f0d00',
+  WIP: '#8c7a6e',
+  CLOSED: '#3c2a23',
+  BIRDS: '#e05a2b',
+  OTHER: '#b3a79c',
+};
+/** 제동작용 등급 순서 (나쁜 순) */
+export const BRAKING_ORDER = ['POOR', 'MEDIUM TO POOR', 'MEDIUM', 'GOOD TO MEDIUM', 'GOOD'];
+export const brakingRank = (b: string) => {
+  const i = BRAKING_ORDER.indexOf(b.toUpperCase());
+  return i < 0 ? BRAKING_ORDER.length : i;
+};
+export const BRAKING_LABEL: Record<string, string> = { POOR: '불량', 'MEDIUM TO POOR': '보통~불량', MEDIUM: '보통', 'GOOD TO MEDIUM': '양호~보통', GOOD: '양호' };
+/** RWYCC 코드 → 색 (6 건조 … 0 결빙/불량) */
+export function rwyccColor(code: number): string {
+  return code >= 6 ? '#5f9a4e' : code >= 5 ? '#8fb84e' : code >= 4 ? '#d9b83a' : code >= 3 ? '#e08a35' : code >= 2 ? '#c8422e' : '#7f0d00';
+}
+/** 상태 보고 1건 요약 — "RWY32R 5/5/5 WET · 제동 GOOD TO MEDIUM" */
+export function rwyCondSummary(c: AtisRecord['rwyCond'][number]): string {
+  const parts: string[] = [];
+  if (c.rwy) parts.push(`RWY${c.rwy}`);
+  if (c.codes) parts.push(c.codes.join('/') + (c.note ? ` ${c.note}` : ''));
+  else if (c.extra.length) parts.push(c.extra[0]);
+  if (c.braking) parts.push(`제동 ${c.braking}`);
+  return parts.join(' · ') || '상태 보고';
+}
+
+/** 활주로 표면 상태 카드 파생값 */
+export function computeRwyCondCard(recs: AtisRecord[]): RwyCondCard {
+  let n = 0;
+  let minCode: number | null = null;
+  let minCodeTxt = '';
+  let brakingN = 0;
+  let worst: string | null = null;
+  let last: RwyCondCard['last'] = null;
+  recs.forEach((r, i) => {
+    if (!r.rwyCond.length) return;
+    n++;
+    for (const c of r.rwyCond) {
+      if (c.codes) {
+        const m = Math.min(...c.codes);
+        if (minCode == null || m < minCode) {
+          minCode = m;
+          minCodeTxt = `${c.codes.join('/')}${c.rwy ? ` RWY${c.rwy}` : ''}`;
+        }
+      }
+      if (c.braking) {
+        brakingN++;
+        if (!worst || brakingRank(c.braking) < brakingRank(worst)) worst = c.braking;
+      }
+    }
+    last = { index: i, time: r.time, summary: r.rwyCond.map(rwyCondSummary).join(' / ') };
+  });
+  return { n, pct: recs.length ? Math.round((n / recs.length) * 100) : 0, minCode, minCodeTxt, brakingN, worstBraking: worst, last };
+}
+
+/** 운영 공지 카드 파생값 */
+export function computeNoticeCard(recs: AtisRecord[]): NoticeCard {
+  const cnt = new Map<NoticeKind, number>();
+  let anyN = 0;
+  let flowMaxMin: number | null = null;
+  recs.forEach((r) => {
+    if (!r.notices.length) return;
+    anyN++;
+    const kinds = new Set(r.notices.map((x) => x.kind));
+    kinds.forEach((k) => cnt.set(k, (cnt.get(k) ?? 0) + 1));
+    r.notices.forEach((x) => x.flow?.forEach((f) => (flowMaxMin = Math.max(flowMaxMin ?? 0, f.min))));
+  });
+  const chips: NoticeChip[] = NOTICE_KINDS.filter((k) => cnt.has(k))
+    .map((k) => ({ kind: k, label: NOTICE_LABEL[k], color: NOTICE_COLOR[k], n: cnt.get(k) as number, pct: recs.length ? Math.round(((cnt.get(k) as number) / recs.length) * 100) : 0 }))
+    .sort((a, b) => b.n - a.n);
+  const lastR = recs[recs.length - 1];
+  const current = lastR ? NOTICE_KINDS.filter((k) => lastR.notices.some((x) => x.kind === k)) : [];
+  return { chips, anyN, flowMaxMin, current };
+}
 /** 조류 무리 규모별 색 (지도 섹터·카드·상세 공용, 베이스맵 톤) */
 export const BIRD_COLOR: Record<BirdKind, string> = { HVY: '#e05a2b', LGT: '#d98a0c' };
 export const BIRD_KIND_LABEL: Record<BirdKind, string> = { HVY: '큰 무리', LGT: '작은 무리' };
@@ -160,10 +357,11 @@ export function computeBirdCard(recs: AtisRecord[]): BirdCard {
   });
   return { n, pct: recs.length ? Math.round((n / recs.length) * 100) : 0, hvy, topDir, last };
 }
-/** 갱신 빈도: 정기 발행은 시간당 2회(:00/:30) — 일평균이 이를 넘으면 임시 갱신 포함으로 판정 */
-const UPD_REGULAR_PER_HOUR = 2;
+/** 갱신 빈도: 정기 발행은 매시 정각 1회(:00) — 일평균이 이를 넘으면 임시 갱신 포함으로 판정 */
+export const UPD_REGULAR_PER_HOUR = 1;
 
 export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number): Stats {
+  if (!recs.length) return emptyStats(xwLimit);
   const cur = recs[recs.length - 1];
   const n = recs.length;
   const spanMs = Math.max(1, cur.ts - recs[0].ts);
@@ -208,6 +406,12 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     });
   });
   const domI = totals.indexOf(maxT);
+  let gustMax: number | null = null;
+  let calmVrb = 0;
+  for (const r of recs) {
+    if (r.gust != null && (gustMax == null || r.gust > gustMax)) gustMax = r.gust;
+    if (r.calm || r.vrb) calmVrb++;
+  }
 
   // 측풍/배풍
   const xws = recs.map((r) => r.xw);
@@ -231,10 +435,11 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
         index: i,
       });
   });
-  // 근접 이벤트는 마지막 것만 남겨 최소 7% 간격 확보 (라벨 겹침 방지)
+  // 근접 이벤트는 마지막 것만 남겨 최소 간격 확보 (라벨 겹침 방지) — 24h는 "HHMMZ", 그 외는 "MM-DD HHMMZ" 라벨이라 더 넓게
+  const minGapPct = range === '24h' ? 8 : 14;
   const evSpaced: RwyEvent[] = [];
   rwyEventsAll.forEach((e) => {
-    while (evSpaced.length && e.leftPct - evSpaced[evSpaced.length - 1].leftPct < 7) evSpaced.pop();
+    while (evSpaced.length && e.leftPct - evSpaced[evSpaced.length - 1].leftPct < minGapPct) evSpaced.pop();
     evSpaced.push(e);
   });
 
@@ -250,14 +455,14 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     temp: count > UPD_REGULAR_PER_HOUR + 0.05,
   }));
 
-  // 구름 / 접근
+  // 구름 / 접근 — 접근 명칭은 데이터에 등장한 것만 (ILS 항상 포함)
   const cavok = recs.filter((r) => r.cloud === 'CAVOK').length;
   const ceils = recs.filter((r) => r.ceil != null).map((r) => r.ceil as number);
-  const appBars: AppBar[] = (['ILS', 'RNP', 'VOR'] as Approach[]).map((name) => ({
-    name,
-    pct: Math.round((recs.filter((r) => r.app === name).length / n) * 100),
-    fill: APP_COLORS[name],
-  }));
+  const appCnt = new Map<string, number>([['ILS', 0]]);
+  recs.forEach((r) => appCnt.set(r.appName, (appCnt.get(r.appName) ?? 0) + 1));
+  const appBars: AppBar[] = [...appCnt.entries()]
+    .sort((a, b) => b[1] - a[1] || (a[0] === 'ILS' ? -1 : 1))
+    .map(([name, c], i) => ({ name, n: c, pct: Math.round((c / n) * 100), fill: appColor(name, i) }));
 
   // 태그
   const tagCnt: Record<string, number> = {};
@@ -283,6 +488,8 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     roseD: [roseD[0].trim(), roseD[1].trim(), roseD[2].trim()],
     domDir: DIR_LABELS[domI],
     domPct: Math.round((maxT / n) * 100),
+    gustMax,
+    calmVrbPct: Math.round((calmVrb / n) * 100),
     xwPts,
     thY,
     maxXw: Math.round(Math.max(...xws)),
@@ -290,6 +497,8 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     maxTw: Math.round(Math.max(...recs.map((r) => r.tw))),
     p32,
     p14,
+    arrRwy: cur.arrRwy ?? '—',
+    depRwy: cur.depRwy ?? '—',
     rwyEvents: evSpaced.slice(-5),
     updBars,
     maxUpd: Math.round(maxUpd * 10) / 10,
@@ -299,14 +508,71 @@ export function computeStats(recs: AtisRecord[], range: Range, xwLimit: number):
     appBars,
     lowVisCount: lowVis.length,
     minVis: lowVis.length ? Math.min(...lowVis.map((r) => r.vis)) : 10,
-    tsCount: recs.filter((r) => r.tags.includes('TS')).length,
+    tsCount: recs.filter(isTsCb).length,
+    rvrCount: recs.filter((r) => r.rvr.length > 0).length,
     qnhPts,
     qnhNow: cur.qnh,
     qnhMax: Math.round(qnhMaxV),
     qnhMin: Math.round(qnhMinV),
     qnhDelta: (qnhMaxV - qnhMinV).toFixed(1),
     tagChips,
+    trendChangeN: recs.filter((r) => r.trend === 'BECMG' || r.trend === 'TEMPO').length,
+    rwyCond: computeRwyCondCard(recs),
+    notice: computeNoticeCard(recs),
     bird: computeBirdCard(recs),
+  };
+}
+
+/** 레코드가 없을 때의 빈 통계 (폴더 미설정·기간 내 전문 없음) */
+function emptyStats(xwLimit: number): Stats {
+  const xwScale = Math.max(20, xwLimit + 5);
+  return {
+    total: 0,
+    firstTime: '—',
+    lastTime: '—',
+    interval: '—',
+    topRwy: '—',
+    avgQnh: 0,
+    tempPts: '',
+    dpPts: '',
+    spreadNow: 0,
+    spreadMin: 0,
+    fogRisk: false,
+    roseD: ['', '', ''],
+    domDir: '—',
+    domPct: 0,
+    gustMax: null,
+    calmVrbPct: 0,
+    xwPts: '',
+    thY: (130 - 10 - 110 * (xwLimit / xwScale)).toFixed(1),
+    maxXw: 0,
+    xwExceed: 0,
+    maxTw: 0,
+    p32: 0,
+    p14: 0,
+    arrRwy: '—',
+    depRwy: '—',
+    rwyEvents: [],
+    updBars: Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0, heightPct: 0, temp: false })),
+    maxUpd: 0,
+    cavokPct: 0,
+    minCeil: null,
+    bknCount: 0,
+    appBars: [],
+    lowVisCount: 0,
+    minVis: 10,
+    tsCount: 0,
+    rvrCount: 0,
+    qnhPts: '',
+    qnhNow: 0,
+    qnhMax: 0,
+    qnhMin: 0,
+    qnhDelta: '0',
+    tagChips: [],
+    trendChangeN: 0,
+    rwyCond: { n: 0, pct: 0, minCode: null, minCodeTxt: '', brakingN: 0, worstBraking: null, last: null },
+    notice: { chips: [], anyN: 0, flowMaxMin: null, current: [] },
+    bird: { n: 0, pct: 0, hvy: 0, topDir: null, last: null },
   };
 }
 
@@ -318,7 +584,7 @@ type HeatEv = keyof typeof HEAT_COLOR;
 
 /**
  * 레코드에서 일 × 시간대 이벤트 히트맵 행을 만든다. [from, to] 창의 각 UTC 일이 한 행.
- * 셀 이벤트: 시정 저하(vis<10, 강수 제외) / 강수(RA·SN 태그) / 활주로 전환(직전 레코드와 다름).
+ * 셀 이벤트: 시정 저하(vis<10, 강수 제외) / 강수(RA·SN·DZ 등 강수 계열 태그) / 활주로 전환(직전 레코드와 다름).
  * 복합은 50/50 그라데이션. `index`는 셀 시간대의 첫 레코드 인덱스(원문 열기용).
  */
 export function computeHeatRows(recs: AtisRecord[], from: number, to: number): HeatRow[] {
@@ -332,8 +598,7 @@ export function computeHeatRows(recs: AtisRecord[], from: number, to: number): H
       c = { ev: new Set(), index: i };
       cellMap.set(key, c);
     }
-    const rain = r.tags.includes('RA') || r.tags.includes('SN');
-    if (rain) c.ev.add('rain');
+    if (isPrecip(r)) c.ev.add('rain');
     else if (r.vis < 10) c.ev.add('fog');
     if (i > 0 && r.rwy !== recs[i - 1].rwy) c.ev.add('rwy');
   });

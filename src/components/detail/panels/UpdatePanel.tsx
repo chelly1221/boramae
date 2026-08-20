@@ -35,7 +35,7 @@ export function UpdatePanel({ recs, win, onOpenRaw }: PanelProps) {
       render: (a) => (
         <span style={{ whiteSpace: 'normal', display: 'inline-flex', flexWrap: 'wrap', gap: '4px 10px' }}>
           {a.changes.map((c, i) => (
-            <span key={i} style={{ fontWeight: /^활주로|^태그/.test(c) ? 700 : 500, color: /^활주로/.test(c) ? '#7f0d00' : undefined }}>
+            <span key={i} style={{ fontWeight: /^활주로|^기상|^공지/.test(c) ? 700 : 500, color: /^활주로/.test(c) ? '#7f0d00' : undefined }}>
               {c}
             </span>
           ))}
@@ -78,7 +78,7 @@ export function UpdatePanel({ recs, win, onOpenRaw }: PanelProps) {
         sub={`${d.unit === 'day' ? '일별' : '시간당'} 건수 · 해상도 ${UNIT_LABEL[d.unit]}`}
         right={
           <>
-            <Legend kind="sq" color={C_REG} label="정기 발행 (:00/:30)" />
+            <Legend kind="sq" color={C_REG} label="정기 발행 (:00 정각)" />
             <Legend kind="sq" color={C_ADHOC} label="임시 갱신" />
           </>
         }
@@ -141,14 +141,14 @@ export function UpdatePanel({ recs, win, onOpenRaw }: PanelProps) {
         </Section>
       </div>
 
-      <Section title="임시 갱신 목록" sub={`정기(:00/:30) 외 시각에 발행된 전문 ${d.adhocN.toLocaleString()}건 · 클릭 → 원문`}>
+      <Section title="임시 갱신 목록" sub={`정기(:00 정각) 외 시각에 발행된 전문 ${d.adhocN.toLocaleString()}건 · 클릭 → 원문`}>
         <DetailTable columns={adhocCols} rows={d.adhocs} rowKey={(a) => a.index} onRowClick={(a) => onOpenRaw(a.index)} emptyText="기간 내 임시 갱신이 없습니다." />
       </Section>
 
       <Section title="발행 공백" sub={`발행 간격 ≥ ${GAP_MIN}분 · 클릭 → 공백 이후 첫 전문`}>
         <DetailTable columns={gapCols} rows={d.gaps} rowKey={(g) => g.index} onRowClick={(g) => onOpenRaw(g.index)} emptyText={`기간 내 ${GAP_MIN}분 이상 공백이 없습니다.`} />
         <span className="dsection__note">
-          정기 발행 = 발행 분이 :00/:30인 전문, 임시 갱신 = 그 외(:15/:45 등). 발행 간격 = 연속 전문의 발행 시각 차, 공백 = 간격 ≥ {GAP_MIN}분. 시간대별 일평균의 일수는 첫~마지막 전문 시각 차(최소 1일)로 통계 카드와 같은 정의이며, 변경 내용은 직전 전문과의 활주로·구름·태그·시정·바람 비교로 추정한 값입니다.
+          정기 발행 = 발행 분이 :00(매시 정각)인 전문, 임시 갱신 = 그 외 시각의 전문(상태 변화 시 발행). 발행 간격 = 연속 전문의 발행 시각 차(정상 ≈ 60분), 공백 = 간격 ≥ {GAP_MIN}분(정기 발행 누락). 시간대별 일평균의 일수는 첫~마지막 전문 시각 차(최소 1일)로 통계 카드와 같은 정의이며, 변경 내용은 직전 전문과의 활주로 배치(ARR/DEP)·구름·현재기상·시정·활주로 상태 보고·운영 공지·바람 비교로 추정한 값입니다.
         </span>
       </Section>
     </>

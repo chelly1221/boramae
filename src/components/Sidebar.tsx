@@ -13,6 +13,9 @@ interface Props {
   onOpenDetail: (key: DetailKey) => void;
   lastTime: string;
   total: number;
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  watching: boolean;
+  error: string;
 }
 
 const NAV: { key: View; label: string; icon: () => ReactElement }[] = [
@@ -21,9 +24,11 @@ const NAV: { key: View; label: string; icon: () => ReactElement }[] = [
   { key: 'import', label: '설정', icon: IconSettings },
 ];
 
-export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total }: Props) {
+export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total, status, watching, error }: Props) {
   const inStats = view === 'stats';
   const inDetail = inStats && detail != null;
+  const watchLabel = status === 'loading' ? '읽는 중' : status === 'error' ? '오류' : watching ? '감시 중' : '감시 중지';
+  const badgeCls = status === 'error' ? 'airport__badge airport__badge--err' : watching ? 'airport__badge' : 'airport__badge airport__badge--off';
   return (
     // 사이드바 전체가 창 드래그 영역 (macOS 사이드바 창처럼). 클릭 가능한 항목은 개별로 제외.
     <aside className="sidebar" data-tauri-drag-region="deep">
@@ -40,7 +45,7 @@ export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total 
       <div className="airport" data-tauri-drag-region="false">
         <span className="airport__dot" />
         <span className="airport__name">RKSS 김포</span>
-        <span className="airport__badge">감시 중</span>
+        <span className={badgeCls}>{watchLabel}</span>
       </div>
 
       <div className="sidebar__section sidebar__section--views">보기</div>
@@ -78,10 +83,10 @@ export function Sidebar({ view, detail, onChange, onOpenDetail, lastTime, total 
       </nav>
 
       <div className="sidebar__spacer" />
-      <div className="sidebar__status">
-        <span>폴더 감시 · 정상</span>
+      <div className="sidebar__status" title={error || undefined}>
+        <span>폴더 감시 · {status === 'error' ? '오류' : error ? '경고' : watching ? '정상' : status === 'loading' ? '적재 중' : '중지'}</span>
         <span>
-          최종 수신 {lastTime.slice(-5)} · {total.toLocaleString()}건
+          최종 수신 {lastTime} · {total.toLocaleString()}건
         </span>
       </div>
     </aside>

@@ -1,12 +1,24 @@
 import { useMemo } from 'react';
 import { fmtDayHM, fmtDT, fmtDur } from '../../../data/detail/agg';
-import { computeTagsDetail, countAxisMax, TAGS_HOUR_UNIT_MAX_DAYS, TAGS_UNIT_LABEL, type TagRun, type TagSummary } from '../../../data/detail/tags';
+import { computeTagsDetail, countAxisMax, TAGS_HOUR_UNIT_MAX_DAYS, TAGS_UNIT_LABEL, type TagRun, type TagSummary, type TrendItem } from '../../../data/detail/tags';
 import { BarChart, HOUR_LABELS, withAlpha, type StackPart } from '../charts';
 import { DetailTable, Empty, Legend, Section, StatTiles, type Column } from '../primitives';
 import type { PanelProps } from './types';
 
 const C_TS = '#c8422e';
+const C_BECMG = '#b4451c';
+const C_TEMPO = '#b8770a';
 const HOUR_AXIS = ['00시', '06시', '12시', '18시', '23시'];
+/** 강도 분포 "FBL 12 · MOD 3 · HVY 1" (0은 생략) */
+const intensityText = (x: [number, number, number]) =>
+  [
+    ['FBL', x[0]],
+    ['MOD', x[1]],
+    ['HVY', x[2]],
+  ]
+    .filter(([, n]) => (n as number) > 0)
+    .map(([l, n]) => `${l} ${n}`)
+    .join(' · ') || '—';
 
 /** 태그 코드 배지 (색 점 + 모노 코드) */
 function TagCode({ tag, color }: { tag: string; color: string }) {
@@ -42,6 +54,7 @@ export function TagsPanel({ recs, win, onOpenRaw }: PanelProps) {
     { key: 'n', label: '건수', align: 'right', mono: true, render: (s) => <b>{s.n.toLocaleString()}</b> },
     { key: 'ratio', label: '전문 대비', align: 'right', mono: true, render: (s) => `${s.ratioText}%` },
     { key: 'runs', label: '구간 수', align: 'right', mono: true, render: (s) => s.runCount },
+    { key: 'int', label: '강도 (FBL/MOD/HVY)', mono: true, render: (s) => intensityText(s.intensity) },
     { key: 'first', label: '첫 발생', mono: true, render: (s) => fmtDT(s.firstTs) },
     { key: 'last', label: '마지막 발생', mono: true, render: (s) => fmtDT(s.lastTs) },
     {
@@ -60,6 +73,16 @@ export function TagsPanel({ recs, win, onOpenRaw }: PanelProps) {
     { key: 'vis', label: '당시 시정 (최저)', align: 'right', mono: true, render: (r) => minVisText(recs, r) },
     { key: 'wind', label: '시작 시 바람', mono: true, render: (r) => recs[r.start]?.wind ?? '—' },
   ];
+
+  const trendCols: Column<TrendItem>[] = [
+    { key: 'ts', label: '시각', mono: true, render: (t) => fmtDT(t.ts) },
+    { key: 'letter', label: '레터', mono: true, align: 'center', render: (t) => <b>{t.letter}</b> },
+    { key: 'trend', label: 'TREND', mono: true, render: (t) => <span style={{ fontWeight: 700, color: t.trend === 'BECMG' ? C_BECMG : C_TEMPO }}>{t.trend}</span> },
+    { key: 'txt', label: '예보 내용 (원문)', mono: true, render: (t) => <span style={{ whiteSpace: 'normal' }}>{t.trendTxt.replace(/^(BECMG|TEMPO)\.?\s*/, '') || '—'}</span> },
+    { key: 'vis', label: '당시 시정', align: 'right', mono: true, render: (t) => t.visTxt },
+    { key: 'wx', label: '당시 현재기상', mono: true, render: (t) => t.wxTxt || '—' },
+  ];
+  const codeList = d.chips.map((c) => `${c.tag} ${c.desc}`).join(' · ');
 
   return (
     <>
@@ -187,6 +210,19 @@ export function TagsPanel({ recs, win, onOpenRaw }: PanelProps) {
         </Section>
       </div>
 
+      <Section title="TREND 변화 예보" sub={`BECMG/TEMPO 전문 ${d.trendItems.length.toLocaleString()}건 · 클릭 → 원문`}>
+        <StatTiles
+          cols={4}
+          tiles={[
+            { label: 'BECMG', value: `${d.becmgN}건`, sub: '점진 변화 예보', color: d.becmgN ? C_BECMG : undefined },
+            { label: 'TEMPO', value: `${d.tempoN}건`, sub: '일시 변화 예보', color: d.tempoN ? C_TEMPO : undefined },
+            { label: 'NOSIG', value: `${(d.n - d.becmgN - d.tempoN - d.trendNullN).toLocaleString()}건`, sub: d.trendNullN ? `TREND 없음 ${d.trendNullN}건` : '유의미한 변화 없음' },
+            { label: '최근기상 (RE)', value: `${d.recentN}건`, sub: d.recentCodes.length ? d.recentCodes.map((c) => `RE ${c.code} ${c.n}`).join(' · ') : '보고 없음' },
+          ]}
+        />
+        <DetailTable columns={trendCols} rows={[...d.trendItems].reverse()} rowKey={(t) => t.index} onRowClick={(t) => onOpenRaw(t.index)} emptyText="기간 내 BECMG/TEMPO 예보가 없습니다 (전부 NOSIG)." />
+      </Section>
+
       <Section title="태그별 요약" sub="건수 내림차순 · 클릭 → 마지막 발생 원문">
         <DetailTable columns={sumCols} rows={d.summaries} rowKey={(s) => s.tag} onRowClick={(s) => s.lastIdx >= 0 && onOpenRaw(s.lastIdx)} emptyText="기간 내 특이기상 태그가 없습니다." />
       </Section>
@@ -194,7 +230,8 @@ export function TagsPanel({ recs, win, onOpenRaw }: PanelProps) {
       <Section title="태그 이벤트 구간" sub={`연속 보고 구간 병합 · 시작 시각순 · ${d.events.length.toLocaleString()}건 · 클릭 → 시작 원문`}>
         <DetailTable columns={evCols} rows={d.events} rowKey={(r) => `${r.tag}-${r.start}`} onRowClick={(r) => onOpenRaw(r.start)} emptyText="기간 내 태그 이벤트가 없습니다." />
         <span className="dsection__note">
-          정의: 태그 건수는 전문 1건 × 태그 1개를 1건으로 셉니다(통계 카드와 동일). 이벤트 구간은 같은 태그가 연속 전문에서 이어지는 범위이며, 지속 시간은 시작·종료 전문의 시각 차입니다(정기 발행 간격 30분 단위 근사). 태그 종류: BR 박무 · FG 안개 · HZ 연무 · RA 비 · SN 눈 · TS 뇌전.
+          정의: 태그 = 전문 현재기상 문장("WITH FBL TS RA BR")의 2글자 현상·기술자 코드(강도 FBL/MOD/HVY 제외, 전문당 중복 제거). 태그 건수는 전문 1건 × 태그 1개를 1건으로 셉니다(통계 카드와 동일). 이벤트 구간은 같은 태그가 연속 전문에서 이어지는
+          범위이며, 지속 시간은 시작·종료 전문의 시각 차입니다(정기 발행 간격 1시간 단위 근사). 강도는 전문당 해당 코드의 가장 센 강도로 1회 셉니다. {codeList ? `기간 내 태그: ${codeList}.` : ''}
         </span>
       </Section>
     </>

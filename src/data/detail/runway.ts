@@ -3,8 +3,9 @@ import type { AtisRecord, Runway, TimeWindow } from '../types';
 import { changes, DAY, dir8, fmtDate, fmtDay, fmtHM, HOUR, mean, median } from './agg';
 
 /*
- * 활주로 사용 상세 파생값 — 사용 비율, 전환 이벤트(카드 rwyEvents와 동일 정의: 직전 전문과 rwy가 다름),
- * 유지 구간, 구간별 32/14 비율(누적 막대), 시간대별 전환·사용 프로파일, 전환 시 풍향 분포, 유지 시간 분포
+ * 활주로 사용 상세 파생값 — 사용 비율, 전환 이벤트(카드 rwyEvents와 동일 정의: 직전 전문과 rwy(방향)가 다름),
+ * 유지 구간, 구간별 32/14 비율(누적 막대), 시간대별 전환·사용 프로파일, 전환 시 풍향 분포, 유지 시간 분포,
+ * 활주로 배치(착륙 ARR / 이륙 DEP 조합: "ARR 32L · DEP 32R")별 사용 건수와 같은 방향 안의 배치 교체 이벤트(32L↔32R 등).
  */
 
 export const RWY_32: Runway = '32L/32R';
@@ -65,6 +66,30 @@ export interface HoldBin {
   n: number;
 }
 
+/** 활주로 배치 라벨 — "ARR 32L · DEP 32R" (없는 쪽은 —) */
+export const rwyConfig = (r: AtisRecord) => `ARR ${r.arrRwy ?? '—'} · DEP ${r.depRwy ?? '—'}`;
+
+/** 배치별 사용 건수 */
+export interface RwyConfigCount {
+  config: string;
+  /** 방향 ('32L/32R' | '14L/14R') */
+  rwy: Runway;
+  n: number;
+  pct: number;
+  /** 마지막 사용 레코드 인덱스 (원문 열기) */
+  lastIndex: number;
+}
+
+/** 같은 방향 안에서 착륙/이륙 활주로만 바뀐 이벤트 (recs[index]가 새 배치의 첫 전문) */
+export interface RwyConfigChange {
+  index: number;
+  ts: number;
+  from: string;
+  to: string;
+  rwy: Runway;
+  wind: string;
+}
+
 export interface RunwayDetail {
   n: number;
   n32: number;
@@ -105,6 +130,13 @@ export interface RunwayDetail {
   dirSpd: (number | null)[];
   /** 유지 시간 분포 (완전한 구간) */
   holdBins: HoldBin[];
+  /* 활주로 배치 (ARR/DEP) */
+  /** 배치별 사용 건수 (건수 내림차순) */
+  configs: RwyConfigCount[];
+  /** 기간 마지막 전문의 배치 */
+  currentConfig: string;
+  /** 같은 방향 안의 배치 교체 이벤트 (시각순) */
+  configChanges: RwyConfigChange[];
 }
 
 /** 진방위 활주로 heading 기준 배풍 성분 (KT, 0 이상) */
@@ -252,6 +284,25 @@ export function computeRunwayDetail(recs: AtisRecord[], win: TimeWindow): Runway
 
   const holdBins: HoldBin[] = HOLD_BINS.map((b) => ({ label: b.label, n: completeDurs.filter((d) => d > b.lo && d <= b.hi).length }));
 
+  /* ---------- 활주로 배치 (ARR/DEP) ---------- */
+  const cfgMap = new Map<string, RwyConfigCount>();
+  const configChanges: RwyConfigChange[] = [];
+  recs.forEach((r, i) => {
+    const config = rwyConfig(r);
+    const c = cfgMap.get(config);
+    if (c) {
+      c.n++;
+      c.lastIndex = i;
+    } else cfgMap.set(config, { config, rwy: r.rwy, n: 1, pct: 0, lastIndex: i });
+    if (i > 0) {
+      const p = recs[i - 1];
+      if (p.rwy === r.rwy && (p.arrRwy !== r.arrRwy || p.depRwy !== r.depRwy)) configChanges.push({ index: i, ts: r.ts, from: rwyConfig(p), to: config, rwy: r.rwy, wind: r.wind });
+    }
+  });
+  const configs = [...cfgMap.values()].sort((a, b) => b.n - a.n || a.config.localeCompare(b.config));
+  for (const c of configs) c.pct = n ? Math.round((c.n / n) * 100) : 0;
+  const currentConfig = n ? rwyConfig(recs[n - 1]) : '—';
+
   return {
     n,
     n32,
@@ -280,6 +331,9 @@ export function computeRunwayDetail(recs: AtisRecord[], win: TimeWindow): Runway
     dirTo14,
     dirSpd,
     holdBins,
+    configs,
+    currentConfig,
+    configChanges,
   };
 }
 
