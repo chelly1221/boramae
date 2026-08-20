@@ -22,19 +22,6 @@ const SHOW_VIS_CIRCLE = true;
 const PLAY_GAP_SKIP_MS = 3 * 3600000;
 /** 재생 가상 시계 표시 갱신 간격 (ms) */
 const PLAY_CLOCK_REFRESH_MS = 250;
-/** 지도 타임라인(스크러버) 최대 셀 수 — 초과 시 균등 간격으로 솎아냄 (30일 ≈ 1,500건 → 240) */
-const MAP_MAX_CELLS = 240;
-
-/** 균등 간격 샘플링 (마지막 레코드는 항상 포함) */
-function thin(recs: AtisRecord[], max: number): AtisRecord[] {
-  if (recs.length <= max) return recs;
-  const step = Math.ceil(recs.length / max);
-  const out: AtisRecord[] = [];
-  for (let i = 0; i < recs.length; i += step) out.push(recs[i]);
-  if (out[out.length - 1] !== recs[recs.length - 1]) out.push(recs[recs.length - 1]);
-  return out;
-}
-
 /** ts → "YYYYMMDDHH" (CSV 파일명·해시용) */
 function tsTag(ts: number): string {
   const d = new Date(ts);
@@ -125,9 +112,8 @@ export default function App() {
   // 상세 페이지: 사용자가 지정한 기간 창 (없으면 현재 range 창)
   const detailWin = win ?? rangeWindow(range, now);
   const detailRecs = useMemo(() => (detail ? recordsBetween(all, detailWin.from, detailWin.to) : []), [all, detail, detailWin.from, detailWin.to]);
-  // 지도: 사용자 지정 기간이 있으면 그 창, 없으면 툴바 기간. 타임라인은 솎아낸 레코드로 (셀 폭·재생 시간 확보)
-  const mapSrc = useMemo(() => (mapWin ? recordsBetween(all, mapWin.from, mapWin.to) : recs), [all, mapWin, recs]);
-  const mapRecs = useMemo(() => thin(mapSrc, MAP_MAX_CELLS), [mapSrc]);
+  // 지도: 사용자 지정 기간이 있으면 그 창, 없으면 툴바 기간. 전문 전체를 넘기고 솎아내기는 스크러버가 보이는 구간 기준으로 한다 (줌하면 촘촘히)
+  const mapRecs = useMemo(() => (mapWin ? recordsBetween(all, mapWin.from, mapWin.to) : recs), [all, mapWin, recs]);
   const last = recs.length - 1;
   const mapLast = mapRecs.length - 1;
   const mapPos = mapIdx == null ? mapLast : Math.min(mapIdx, mapLast);
@@ -370,7 +356,7 @@ export default function App() {
                 win: mapWin ?? rangeWindow(range, now),
                 now,
                 minTs,
-                count: mapSrc.length,
+                count: mapRecs.length,
                 onChange: changeMapWin,
                 onClose: () => setShowMapPeriod(false),
               }}

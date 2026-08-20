@@ -1093,6 +1093,41 @@ svg {
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--border-12);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.scrubber__strip--zoomed {
+  cursor: grab;
+}
+.scrubber__strip--zoomed:active {
+  cursor: grabbing;
+}
+.scrubber__zoom {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-12);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+}
+.scrubber__zoom-btn {
+  padding: 1px 7px;
+  color: var(--ink-muted-6);
+  cursor: pointer;
+  min-width: 18px;
+  text-align: center;
+}
+.scrubber__zoom-btn + .scrubber__zoom-btn {
+  border-left: 1px solid var(--border-1);
+}
+.scrubber__zoom-btn:hover {
+  background: rgba(127, 13, 0, 0.08);
+}
+.scrubber__zoom-btn--off {
+  color: var(--ink-muted-4);
+  cursor: default;
 }
 .scrubber__cell {
   flex: 1;

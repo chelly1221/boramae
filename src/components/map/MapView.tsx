@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { autoUnit, DAY, fmtDay, fmtDayHM, HOUR } from '../../data/detail/agg';
 import { useWidth } from '../detail/primitives';
 import { windColor } from '../../data/stats';
@@ -48,6 +48,23 @@ interface Props {
 
 /** 스크러버 셀이 이 개수를 넘으면 화살표를 숨긴다 (너무 좁아짐) */
 const ARROW_MAX_CELLS = 96;
+/** 보이는 구간을 이 셀 수 이하로 균등 솎아냄 (줌인하면 솎지 않고 전부 보임) */
+const MAX_CELLS = 240;
+/** 줌 최소 구간 (전문 수) */
+const MIN_VIEW = 8;
+/** 드래그로 판정하는 최소 이동 (px) — 그 미만은 클릭(선택) */
+const DRAG_PX = 4;
+
+/** [a, b) 구간 인덱스를 max개 이하로 균등 솎아낸 원본 인덱스 목록 (마지막은 항상 포함) */
+function thinIdx(a: number, b: number, max: number): number[] {
+  const n = b - a;
+  if (n <= 0) return [];
+  const step = Math.max(1, Math.ceil(n / max));
+  const out: number[] = [];
+  for (let i = a; i < b; i += step) out.push(i);
+  if (out[out.length - 1] !== b - 1) out.push(b - 1);
+  return out;
+}
 /** 시각 축 눈금 간격 (6시간) — 라벨은 폭에 맞춰 6h/12h/1d/2d/7d 중 하나로 솎음 */
 const TICK_MS = 6 * HOUR;
 const LABEL_STEPS = [6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY];
@@ -109,9 +126,98 @@ export function MapView({ recs, mapIdx, playing, speed, onSpeed, playClock, wind
 
   useLeafletMap(mapEl, { vis: cur.vis, visTxt: cur.visTxt, showVis: showVisCircle, activeRwy: cur.rwy, arrRwy: cur.arrRwy, depRwy: cur.depRwy, birds: cur.birds, aerial }, initialZoom);
 
-  const showArrows = recs.length <= ARROW_MAX_CELLS;
+  const n = recs.length;
+  /* ---------- 타임라인 뷰포트 (줌/팬): 원본 인덱스 [a, b) — null이면 전체 ---------- */
+  const [view, setView] = useState<{ a: number; b: number } | null>(null);
+  useEffect(() => setView(null), [recs]); // 기간이 바뀌면 전체로
+  const a = view ? Math.max(0, Math.min(view.a, n - 1)) : 0;
+  const b = view ? Math.max(a + 1, Math.min(view.b, n)) : n;
+  const size = b - a;
+  const zoomed = size < n;
+  const cells = useMemo(() => thinIdx(a, b, MAX_CELLS), [a, b]);
+  const visible = useMemo(() => cells.map((i) => recs[i]), [cells, recs]);
+  const showArrows = cells.length <= ARROW_MAX_CELLS;
   const [stripRef, stripW] = useWidth<HTMLDivElement>();
-  const ticks = useMemo(() => axisTicks(recs, stripW), [recs, stripW]);
+  const ticks = useMemo(() => axisTicks(visible, stripW), [visible, stripW]);
+  /** 선택 전문이 속한 셀 (솎인 경우 직전 셀) — 구간 밖이면 -1 */
+  const selCell = useMemo(() => {
+    if (mi < a || mi >= b) return -1;
+    let k = 0;
+    while (k + 1 < cells.length && cells[k + 1] <= mi) k++;
+    return k;
+  }, [cells, mi, a, b]);
+
+  const setRange = (na: number, nsize: number) => {
+    const sz = Math.max(Math.min(MIN_VIEW, n), Math.min(n, Math.round(nsize)));
+    const start = Math.max(0, Math.min(Math.round(na), n - sz));
+    if (sz >= n) setView(null);
+    else setView({ a: start, b: start + sz });
+  };
+  /** 배율 zoom(>1 확대)로 pivot(구간 내 0–1 위치) 기준 줌 */
+  const zoomAt = (factor: number, pivot: number) => {
+    const p = a + pivot * size;
+    const nsize = size / factor;
+    setRange(p - pivot * nsize, nsize);
+  };
+
+  // 휠 줌 (네이티브 리스너 — passive:false 로 페이지 스크롤 방지)
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const pivot = rect.width ? Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) : 0.5;
+      if (e.shiftKey) {
+        // Shift+휠: 팬
+        setRange(a + Math.sign(e.deltaY) * Math.max(1, size * 0.15), size);
+      } else zoomAt(e.deltaY < 0 ? 1.3 : 1 / 1.3, pivot);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripRef, a, size, n]);
+
+  // 드래그 팬 / 클릭 선택
+  const drag = useRef<{ x0: number; a0: number; moved: boolean } | null>(null);
+  const cellAt = (clientX: number) => {
+    const el = stripRef.current;
+    if (!el || !cells.length) return -1;
+    const rect = el.getBoundingClientRect();
+    const f = Math.min(0.9999, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.floor(f * cells.length);
+  };
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    drag.current = { x0: e.clientX, a0: a, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x0;
+    if (!d.moved && Math.abs(dx) < DRAG_PX) return;
+    d.moved = true;
+    if (!zoomed || !stripW) return;
+    setRange(d.a0 - (dx / stripW) * size, size);
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    if (!d.moved) {
+      const k = cellAt(e.clientX);
+      if (k >= 0) onPick(cells[k]);
+    }
+  };
+
+  // 재생 중 선택 전문이 구간 밖으로 나가면 따라가며 스크롤 (선택이 구간의 30% 지점에 오도록)
+  useEffect(() => {
+    if (!playing || !zoomed) return;
+    if (mi >= a && mi < b) return;
+    setRange(mi - size * 0.3, size);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mi, playing]);
 
   return (
     <div className={`mapview${aerial ? ' mapview--aerial' : ''}`}>
@@ -182,24 +288,40 @@ export function MapView({ recs, mapIdx, playing, speed, onSpeed, playClock, wind
             <span className="scrubber__count" title="현재 배속">
               {speedNote(speed)}
             </span>
-            <span className="scrubber__count">{recs.length.toLocaleString()}건</span>
+            <div className="scrubber__zoom" title="타임라인 줌 — 휠: 확대/축소 · 드래그 또는 Shift+휠: 이동 · 더블클릭: 전체">
+              <span className="scrubber__zoom-btn" onClick={() => zoomAt(1 / 1.6, 0.5)}>
+                −
+              </span>
+              <span className="scrubber__zoom-btn" onClick={() => zoomAt(1.6, selCell >= 0 ? (selCell + 0.5) / cells.length : 0.5)}>
+                +
+              </span>
+              <span className={`scrubber__zoom-btn${zoomed ? '' : ' scrubber__zoom-btn--off'}`} onClick={() => setView(null)}>
+                전체
+              </span>
+            </div>
+            <span className="scrubber__count">{zoomed ? `${size.toLocaleString()} / ${n.toLocaleString()}건` : `${n.toLocaleString()}건`}</span>
             <span className="scrubber__time">{cur.time}</span>
             <span className="scrubber__info">
               INFO {cur.letter} · {cur.wind} · VIS {cur.visTxt}
             </span>
           </div>
-          <div className="scrubber__strip" ref={stripRef}>
-            {recs.map((r, i) => (
-              <div
-                key={i}
-                className={`scrubber__cell${i === mi ? ' scrubber__cell--sel' : ''}`}
-                title={`${r.time} · ${r.wind}`}
-                style={{ background: windColor(r.spd) }}
-                onClick={() => onPick(i)}
-              >
-                {showArrows && <IconArrowUp rotate={(Math.round(r.dir) + 180) % 360} />}
-              </div>
-            ))}
+          <div
+            className={`scrubber__strip${zoomed ? ' scrubber__strip--zoomed' : ''}`}
+            ref={stripRef}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={() => (drag.current = null)}
+            onDoubleClick={() => setView(null)}
+          >
+            {cells.map((idx, k) => {
+              const r = recs[idx];
+              return (
+                <div key={idx} className={`scrubber__cell${k === selCell ? ' scrubber__cell--sel' : ''}`} title={`${r.time} · ${r.wind}`} style={{ background: windColor(r.spd) }}>
+                  {showArrows && <IconArrowUp rotate={(Math.round(r.dir) + 180) % 360} />}
+                </div>
+              );
+            })}
           </div>
           {/* 시각 축: 6시간 눈금, 00Z는 날짜 */}
           <div className="scrubber__axis">
@@ -210,7 +332,7 @@ export function MapView({ recs, mapIdx, playing, speed, onSpeed, playClock, wind
             ))}
           </div>
           <div className="scrubber__foot">
-            <span>{recs[0].time}</span>
+            <span>{visible[0]?.time}</span>
             <div className="wind-legend">
               {WIND_LEGEND.map(([c, t]) => (
                 <div key={t} className="wind-legend__item">
@@ -219,7 +341,7 @@ export function MapView({ recs, mapIdx, playing, speed, onSpeed, playClock, wind
                 </div>
               ))}
             </div>
-            <span>{recs[recs.length - 1].time}</span>
+            <span>{visible[visible.length - 1]?.time}</span>
           </div>
         </div>
       </div>
