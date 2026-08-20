@@ -1103,6 +1103,26 @@ svg {
 .scrubber__strip--zoomed:active {
   cursor: grabbing;
 }
+.timeline {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.timeline--zoomed {
+  cursor: grab;
+}
+.timeline--zoomed:active {
+  cursor: grabbing;
+}
+.scrubber__hover {
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-muted-6);
+  font-family: var(--font-mono);
+}
 .scrubber__zoom {
   display: flex;
   align-items: center;
